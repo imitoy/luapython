@@ -12,7 +12,7 @@ A Lua binding for Python.
 ```bash
 git clone https://github.com/imitoy/luapython.git
 cd luapython
-make # Requires Python development headers
+make # Requires Lua and Python headers
 ```
 3. Import this library in Lua.
 ```lua
@@ -36,8 +36,10 @@ set=require "luapython.set"
 
 4. Import python modules in Lua.
 ```lua
-numpy=import("numpy") -- Make sure numpy is installed
+numpy=import"numpy" -- Make sure numpy is installed
 print(numpy.array({1,2,3}))
+math=import"math"
+print(math.tan(90))
 ```
 
 5. Create Python structure by using `dict`, `set`, `list`, `tuple`.
