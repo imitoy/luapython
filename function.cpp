@@ -3,23 +3,23 @@
 int function_call(lua_State* L) {
     int nargs = lua_gettop(L)-1;
     if(!lua_isuserdata(L, 1)){
-        luaL_error(L, "Stack top is not a function object");
+        luaL_error(L, "function_call: Stack top is not a function object");
         return 0;
     }
     PyObject* function = *(PyObject**)lua_touserdata(L, 1);
     if (!PyCallable_Check(function)) {
-        luaL_error(L, "Attempt to call a %s object", Py_TYPE(function)->tp_name);
+        luaL_error(L, "function_call: Attempt to call a %s object", Py_TYPE(function)->tp_name);
         return 0;
     }
     PyObject* args = PyTuple_New(nargs);
     if (!args) {
-        luaL_error(L, "Failed to create argument tuple");
+        luaL_error(L, "function_call: Failed to create argument tuple");
         return 0;
     }
     for (int i = 0; i < nargs; i++) {
         PyObject* arg = convertPython(L, i+2);
         if (!arg) {
-            luaL_error(L, "Failed to convert argument %d", i+1);
+            luaL_error(L, "function_call: Failed to convert argument %d", i+1);
             return 0;
         }
         PyTuple_SetItem(args, i, arg);
@@ -32,7 +32,7 @@ int function_call(lua_State* L) {
 
 int function_tostring(lua_State* L) {
     if (!lua_isuserdata(L, -1)) {
-        luaL_error(L, "Attempt to convert a %s value to string", luaL_typename(L, -1));
+        luaL_error(L, "function_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
         return 0;
     }
     PyObject* function = convertPython(L, -1);
@@ -44,7 +44,7 @@ int function_tostring(lua_State* L) {
 
 int pushFunctionLua(lua_State*L, PyObject* function){
     if(!PyCallable_Check(function)){
-        luaL_error(L, "Function is not callable");
+        luaL_error(L, "pushFunctionLua: Function is not callable");
         return 0;
     }
     void* point = lua_newuserdata(L, sizeof(PyObject*));

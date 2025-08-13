@@ -1,6 +1,5 @@
 #include "luapython.hpp"
 
-// 检查是否为Python元组对象
 static bool is_pytuple(lua_State* L, int index) {
     if (!lua_isuserdata(L, index)) return false;
     
@@ -13,95 +12,52 @@ static bool is_pytuple(lua_State* L, int index) {
     return false;
 }
 
-// 将Lua表转换为Python元组
-static PyObject* lua_table_to_pytuple(lua_State* L, int index) {
-    if (!lua_istable(L, index)) return nullptr;
-    
-    PyObject* py_list = PyList_New(0);
-    if (!py_list) return nullptr;
-    
-    lua_pushnil(L);
-    while (lua_next(L, index - 1) != 0) {
-        PyObject* py_value = convertPython(L, -1);
-        if (py_value) {
-            PyList_Append(py_list, py_value);
-            Py_DECREF(py_value);
-        } else {
-            Py_DECREF(py_list);
-            return nullptr;
-        }
-        lua_pop(L, 1);
-    }
-    
-    PyObject* py_tuple = PyList_AsTuple(py_list);
-    Py_DECREF(py_list);
-    return py_tuple;
-}
-
-// 将Python元组转换为Lua表
-static int pytuple_to_lua_table(lua_State* L, PyObject* py_tuple) {
-    if (!PyTuple_Check(py_tuple)) return 0;
-    
-    lua_newtable(L);
-    Py_ssize_t size = PyTuple_Size(py_tuple);
-    
-    for (Py_ssize_t i = 0; i < size; i++) {
-        PyObject* item = PyTuple_GetItem(py_tuple, i);
-        pushLua(L, item);
-        lua_seti(L, -2, i + 1);
-    }
-    
-    return 1;
-}
-
-// 元组长度
 int tuple_len(lua_State* L) {
-    if (!(lua_istable(L, 1) || is_pytuple(L, 1))) {
-        luaL_error(L, "Attempt to get length of %s", luaL_typename(L, 1));
+    if (!(lua_istable(L, -1) || is_pytuple(L, -1))) {
+        luaL_error(L, "tuple_len: Attempt to get length of %s", luaL_typename(L, -1));
         return 0;
     }
 
-    if (lua_istable(L, 1)) {
-        lua_len(L, 1);
+    if (lua_istable(L, -1)) {
+        lua_len(L, -1);
         return 1;
     }
 
-    PyObject* py_tuple = *(PyObject**)lua_touserdata(L, 1);
+    PyObject* py_tuple = *(PyObject**)lua_touserdata(L, -1);
     Py_ssize_t len = PyTuple_Size(py_tuple);
     lua_pushinteger(L, len);
     return 1;
 }
 
-// 元组相等比较
 int tuple_eq(lua_State* L) {
-    if (!(lua_istable(L, 1) || is_pytuple(L, 1)) || 
-        !(lua_istable(L, 2) || is_pytuple(L, 2))) {
-        luaL_error(L, "Attempt to compare %s and %s as tuples", 
-                  luaL_typename(L, 1), luaL_typename(L, 2));
+    if (!(lua_istable(L, -1) || is_pytuple(L, -1)) || 
+        !(lua_istable(L, -2) || is_pytuple(L, -2))) {
+        luaL_error(L, "tuple_eq: Attempt to compare %s and %s as tuples", 
+                  luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
     PyObject* py_tuple1 = nullptr;
     PyObject* py_tuple2 = nullptr;
     
-    if (lua_istable(L, 1)) {
-        py_tuple1 = lua_table_to_pytuple(L, 1);
+    if (lua_istable(L, -1)) {
+        py_tuple1 = convertPython(L, -1);
     } else {
-        py_tuple1 = *(PyObject**)lua_touserdata(L, 1);
+        py_tuple1 = *(PyObject**)lua_touserdata(L, -1);
         Py_INCREF(py_tuple1);
     }
     
-    if (lua_istable(L, 2)) {
-        py_tuple2 = lua_table_to_pytuple(L, 2);
+    if (lua_istable(L, -2)) {
+        py_tuple2 = convertPython(L, -2);
     } else {
-        py_tuple2 = *(PyObject**)lua_touserdata(L, 2);
+        py_tuple2 = *(PyObject**)lua_touserdata(L, -2);
         Py_INCREF(py_tuple2);
     }
 
     if (!py_tuple1 || !py_tuple2) {
         if (py_tuple1) Py_DECREF(py_tuple1);
         if (py_tuple2) Py_DECREF(py_tuple2);
-        luaL_error(L, "Failed to create Python tuples");
+        luaL_error(L, "tuple_eq: Failed to create Python tuples");
         return 0;
     }
 
@@ -113,20 +69,19 @@ int tuple_eq(lua_State* L) {
     return 1;
 }
 
-// 元组索引访问
 int tuple_index(lua_State* L) {
-    if (!(lua_istable(L, 1) || is_pytuple(L, 1))) {
-        luaL_error(L, "Attempt to index %s", luaL_typename(L, 1));
+    if (!(lua_istable(L, -2) || is_pytuple(L, -2))) {
+        luaL_error(L, "tuple_index: Attempt to index %s", luaL_typename(L, -2));
         return 0;
     }
 
-    if (lua_istable(L, 1)) {
-        lua_geti(L, 1, luaL_checkinteger(L, 2));
+    if (lua_istable(L, -2)) {
+        lua_geti(L, -2, luaL_checkinteger(L, -1));
         return 1;
     }
 
-    PyObject* py_tuple = *(PyObject**)lua_touserdata(L, 1);
-    long index = luaL_checkinteger(L, 2);
+    PyObject* py_tuple = *(PyObject**)lua_touserdata(L, -2);
+    long index = luaL_checkinteger(L, -1);
     Py_ssize_t py_index = index - 1;
     Py_ssize_t size = PyTuple_Size(py_tuple);
     
@@ -140,29 +95,28 @@ int tuple_index(lua_State* L) {
     return 1;
 }
 
-// 元组转换为字符串
 int tuple_tostring(lua_State* L) {
-    if (!(lua_istable(L, 1) || is_pytuple(L, 1))) {
-        luaL_error(L, "Attempt to convert a %s value to string", luaL_typename(L, 1));
+    if (!(lua_istable(L, -1) || is_pytuple(L, -1))) {
+        luaL_error(L, "tuple_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
         return 0;
     }
 
-    if (lua_istable(L, 1)) {
+    if (lua_istable(L, -1)) {
         lua_pushstring(L, "table");
         return 1;
     }
 
-    PyObject* py_tuple = *(PyObject**)lua_touserdata(L, 1);
+    PyObject* py_tuple = *(PyObject**)lua_touserdata(L, -1);
     PyObject* str_repr = PyObject_Str(py_tuple);
     if (!str_repr) {
-        luaL_error(L, "Failed to convert Python tuple to string");
+        luaL_error(L, "tuple_tostring: Failed to convert Python tuple to string");
         return 0;
     }
     
     const char* str = PyUnicode_AsUTF8(str_repr);
     if (!str) {
         Py_DECREF(str_repr);
-        luaL_error(L, "Failed to get string representation");
+        luaL_error(L, "tuple_tostring: Failed to get string representation");
         return 0;
     }
     
@@ -173,7 +127,7 @@ int tuple_tostring(lua_State* L) {
 
 int pushTupleLua(lua_State*L, PyObject* tuple) { 
     if(!PyTuple_Check(tuple)){
-        luaL_error(L, "Not a tuple");
+        luaL_error(L, "pushTupleLua: Not a tuple");
         return 0;
     }
     void* tuple_ptr = lua_newuserdata(L, sizeof(PyObject*));
@@ -205,7 +159,7 @@ PyObject* convertTuplePython(lua_State* L, int index) {
         Py_INCREF(py_tuple);
         return py_tuple;
     }
-    luaL_error(L, "Attempt to convert a %s value to Python tuple", luaL_typename(L, index));
+    luaL_error(L, "convertTuplePython: Attempt to convert a %s value to Python tuple", luaL_typename(L, index));
     return nullptr;
 }
 

@@ -3,18 +3,14 @@
 
 int module_index(lua_State* L) {
     if (!lua_isstring(L, -1)) {
-        luaL_error(L, "Attempt to index a %s value", luaL_typename(L, -1));
+        luaL_error(L, "module_index: Attempt to index a %s value", luaL_typename(L, -1));
         return 0;
-    }
-    for(int i = 1; i <= lua_gettop(L); i++){
-        //std::cout << "Stack " << i << ": " << lua_typename(L, lua_type(L, i)) << std::endl;
     }
     const char* key = lua_tostring(L, -1);
     PyObject* module = convertPython(L, -2);
-    //std::cout << "Indexing module " << Py_TYPE(module)->tp_name << " with key " << key << std::endl;
     PyObject* value = PyObject_GetAttrString(module, key);
     if (value == NULL) {
-        luaL_error(L, "Attribute %s not found in module %s", key, Py_TYPE(module)->tp_name);
+        luaL_error(L, "module_index: Attribute %s not found in module %s", key, Py_TYPE(module)->tp_name);
         return 0;
     }
     pushLua(L, value);

@@ -1,8 +1,24 @@
+// Allow overriding of header includes via compiler defines
+#ifndef PYTHON_HEADER
 #include <Python.h>
+#else
+#include PYTHON_HEADER
+#endif
+
+#ifndef LUA_HEADER
 #include <lua.hpp>
+#else
+#include LUA_HEADER
+#endif
 //#include <iostream>
 #include <dlfcn.h>
 #include "luapython.hpp"
+
+#define LUAPY_STRINGIFY(x) #x
+#define LUAPY_TOSTRING(x) LUAPY_STRINGIFY(x)
+#ifndef PYTHON_DYLIB
+#define PYTHON_DYLIB libpython3.13.so
+#endif
 
 static int python_import(lua_State *L)
 {
@@ -140,10 +156,10 @@ PyObject* convertPython(lua_State*L, int index) {
 
 extern "C" int luaopen_luapython(lua_State *L)
 {
-    void* handle = dlopen("libpython3.13.so", RTLD_LAZY | RTLD_GLOBAL);
+    void* handle = dlopen(LUAPY_TOSTRING(PYTHON_DYLIB), RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
         // 如果加载失败，报告错误
-        luaL_error(L, "Failed to load libpython3.13.so: %s", dlerror());
+        luaL_error(L, "Failed to load %s: %s", LUAPY_TOSTRING(PYTHON_DYLIB), dlerror());
         return 0;
     }
     if(!Py_IsInitialized()) {
@@ -166,10 +182,10 @@ extern "C" int luaopen_luapython(lua_State *L)
 }
 
 extern "C" int luaopen_luapython_import(lua_State *L){
-    void* handle = dlopen("libpython3.13.so", RTLD_LAZY | RTLD_GLOBAL);
+    void* handle = dlopen(LUAPY_TOSTRING(PYTHON_DYLIB), RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
         // 如果加载失败，报告错误
-        luaL_error(L, "Failed to load libpython3.13.so: %s", dlerror());
+        luaL_error(L, "Failed to load %s: %s", LUAPY_TOSTRING(PYTHON_DYLIB), dlerror());
         return 0;
     }
     if(!Py_IsInitialized()) {
@@ -180,10 +196,10 @@ extern "C" int luaopen_luapython_import(lua_State *L){
 }
 
 extern "C" int luaopen_luapython_dict(lua_State *L){
-    void* handle = dlopen("libpython3.13.so", RTLD_LAZY | RTLD_GLOBAL);
+    void* handle = dlopen(LUAPY_TOSTRING(PYTHON_DYLIB), RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
         // 如果加载失败，报告错误
-        luaL_error(L, "Failed to load libpython3.13.so: %s", dlerror());
+        luaL_error(L, "Failed to load %s: %s", LUAPY_TOSTRING(PYTHON_DYLIB), dlerror());
         return 0;
     }
     if(!Py_IsInitialized()) {

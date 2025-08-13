@@ -1,5 +1,14 @@
+#ifndef PYTHON_HEADER
 #include <Python.h>
+#else
+#include PYTHON_HEADER
+#endif
+
+#ifndef LUA_HEADER
 #include <lua.hpp>
+#else
+#include LUA_HEADER
+#endif
 
 extern "C" int luaopen_luapython(lua_State *L);
 

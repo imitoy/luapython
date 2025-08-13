@@ -4,23 +4,21 @@ int number_add(lua_State *L)
 {
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to add a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_add: Attempt to add a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to add on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_add: Attempt to add on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
     {
-        //simple addition
         double a = lua_tonumber(L, -2);
         double b = lua_tonumber(L, -1);
         lua_pushnumber(L, a + b);
         return 1;
     }
-    //convert lua numbers to python numbers
     PyObject* py_a = nullptr;
     PyObject* py_b = nullptr;
     bool release_a = false;
@@ -44,12 +42,12 @@ int number_add(lua_State *L)
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_add: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_Add(py_a, py_b);
     if (!result)
-    {        luaL_error(L, "Python addition failed");
+    {        luaL_error(L, "number_add: Python addition failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -64,23 +62,21 @@ int number_sub(lua_State *L)
 {
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to subtract a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_sub: to subtract a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to subtract on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_sub: Attempt to subtract on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
     {
-        //simple subtraction
         double a = lua_tonumber(L, -2);
         double b = lua_tonumber(L, -1);
         lua_pushnumber(L, a - b);
         return 1;
     }
-    //convert lua numbers to python numbers
     PyObject* py_a = nullptr;
     PyObject* py_b = nullptr;
     bool release_a = false;
@@ -103,13 +99,13 @@ int number_sub(lua_State *L)
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_sub: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_Subtract(py_a, py_b);
     if (!result)
     {        
-        luaL_error(L, "Python subtraction failed");
+        luaL_error(L, "number_sub: Python subtraction failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -124,23 +120,21 @@ int number_mul(lua_State *L)
 {
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to multiply a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_mul: Attempt to multiply a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to multiply on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_mul: Attempt to multiply on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
     {
-        //simple multiplication
         double a = lua_tonumber(L, -2);
         double b = lua_tonumber(L, -1);
         lua_pushnumber(L, a * b);
         return 1;
     }
-    //convert lua numbers to python numbers
     PyObject* py_a = nullptr;
     PyObject* py_b = nullptr;
     bool release_a = false;
@@ -163,13 +157,13 @@ int number_mul(lua_State *L)
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_mul: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_Multiply(py_a, py_b);
     if (!result)
     {        
-        luaL_error(L, "Python multiplication failed");
+        luaL_error(L, "number_mul: Python multiplication failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -184,28 +178,26 @@ int number_div(lua_State *L)
 {
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to divide a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_div: Attempt to divide a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to divide on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_div: Attempt to divide on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
     {
-        //simple division
         double a = lua_tonumber(L, -2);
         double b = lua_tonumber(L, -1);
         if (b == 0.0)
         {
-            luaL_error(L, "Division by zero");
+            luaL_error(L, "number_div: Division by zero");
             return 0;
         }
         lua_pushnumber(L, a / b);
         return 1;
     }
-    //convert lua numbers to python numbers
     PyObject* py_a = nullptr;
     PyObject* py_b = nullptr;
     bool release_a = false;
@@ -228,13 +220,13 @@ int number_div(lua_State *L)
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_div: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_TrueDivide(py_a, py_b);
     if (!result)
     {        
-        luaL_error(L, "Python division failed");
+        luaL_error(L, "number_div: Python division failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -248,27 +240,25 @@ int number_div(lua_State *L)
 int number_mod(lua_State* L){
     if(!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to modulo a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_mod: Attempt to modulo a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
-    {        luaL_error(L, "Attempt to modulo on a %s value", luaL_typename(L, -2));
+    {        luaL_error(L, "number_mod: Attempt to modulo on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
     {
-        //simple modulo
         double a = lua_tonumber(L, -2);
         double b = lua_tonumber(L, -1);
         if (b == 0.0)
         {
-            luaL_error(L, "Modulo by zero");
+            luaL_error(L, "number_mod: Modulo by zero");
             return 0;
         }
         lua_pushnumber(L, fmod(a, b));
         return 1;
     }
-    //convert lua numbers to python numbers
     PyObject* py_a = nullptr;
     PyObject* py_b = nullptr;
     bool release_a = false;
@@ -292,13 +282,13 @@ int number_mod(lua_State* L){
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_mod: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_Remainder(py_a, py_b);
     if (!result)
     {
-        luaL_error(L, "Python modulo failed");
+        luaL_error(L, "number_mod: Python modulo failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -313,23 +303,21 @@ int number_pow(lua_State *L)
 {
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to power a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_pow: Attempt to power a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to power on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_pow: Attempt to power on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
     {
-        //simple power
         double a = lua_tonumber(L, -2);
         double b = lua_tonumber(L, -1);
         lua_pushnumber(L, pow(a, b));
         return 1;
     }
-    //convert lua numbers to python numbers
     PyObject* py_a = nullptr;
     PyObject* py_b = nullptr;
     bool release_a = false;
@@ -352,13 +340,13 @@ int number_pow(lua_State *L)
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_pow: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_Power(py_a, py_b, Py_None);
     if (!result)
     {        
-        luaL_error(L, "Python power failed");
+        luaL_error(L, "number_pow: Python power failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -373,17 +361,15 @@ int number_unm(lua_State *L)
 {
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to negate a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_unm: Attempt to negate a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(lua_isnumber(L, -1))
     {
-        //simple negation
         double a = lua_tonumber(L, -1);
         lua_pushnumber(L, -a);
         return 1;
     }
-    //convert lua number to python number
     PyObject* py_a = nullptr;
     bool release_a = false;
     if(lua_isnumber(L, -1))
@@ -397,13 +383,13 @@ int number_unm(lua_State *L)
     }
     if (!py_a)
     {
-        luaL_error(L, "Failed to convert Lua number to Python number");
+        luaL_error(L, "number_unm: Failed to convert Lua number to Python number");
         return 0;
     }
     PyObject* result = PyNumber_Negative(py_a);
     if (!result)
     {        
-        luaL_error(L, "Python negation failed");
+        luaL_error(L, "number_unm: Python negation failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -415,28 +401,26 @@ int number_unm(lua_State *L)
 int number_idiv(lua_State* L){
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to integer divide a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_idiv: Attempt to integer divide a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to integer divide on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_idiv: Attempt to integer divide on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
     {
-        //simple integer division
         double a = lua_tonumber(L, -2);
         double b = lua_tonumber(L, -1);
         if (b == 0.0)
         {
-            luaL_error(L, "Integer division by zero");
+            luaL_error(L, "number_idiv: Integer division by zero");
             return 0;
         }
         lua_pushinteger(L, static_cast<lua_Integer>(a / b));
         return 1;
     }
-    //convert lua numbers to python numbers
     PyObject* py_a = nullptr;
     PyObject* py_b = nullptr;
     bool release_a = false;
@@ -460,13 +444,13 @@ int number_idiv(lua_State* L){
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_idiv: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_FloorDivide(py_a, py_b);
     if (!result)
     {        
-        luaL_error(L, "Python integer division failed");
+        luaL_error(L, "number_idiv: Python integer division failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -480,23 +464,21 @@ int number_idiv(lua_State* L){
 int number_band(lua_State* L){
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to bitwise AND a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_band: Attempt to bitwise AND a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to bitwise AND on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_band: Attempt to bitwise AND on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
     {
-        //simple bitwise AND
         lua_Integer a = lua_tointeger(L, -2);
         lua_Integer b = lua_tointeger(L, -1);
         lua_pushinteger(L, a & b);
         return 1;
     }
-    //convert lua numbers to python numbers
     PyObject* py_a = nullptr;
     PyObject* py_b = nullptr;
     bool release_a = false;
@@ -520,13 +502,13 @@ int number_band(lua_State* L){
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_band: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_And(py_a, py_b);
     if (!result)
     {        
-        luaL_error(L, "Python bitwise AND failed");
+        luaL_error(L, "number_band: Python bitwise AND failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -540,12 +522,12 @@ int number_band(lua_State* L){
 int number_bor(lua_State* L){
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to bitwise OR a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_bor: Attempt to bitwise OR a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to bitwise OR on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_bor: Attempt to bitwise OR on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
@@ -575,13 +557,13 @@ int number_bor(lua_State* L){
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_bor: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_Or(py_a, py_b);
     if (!result)
     {
-        luaL_error(L, "Python bitwise OR failed");
+        luaL_error(L, "number_bor: Python bitwise OR failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -595,12 +577,12 @@ int number_bor(lua_State* L){
 int number_bxor(lua_State* L){
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to bitwise XOR a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_bxor: Attempt to bitwise XOR a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to bitwise XOR on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_bxor: Attempt to bitwise XOR on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
@@ -630,13 +612,13 @@ int number_bxor(lua_State* L){
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_bxor: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
     PyObject* result = PyNumber_Xor(py_a, py_b);
     if (!result)
     {
-        luaL_error(L, "Python bitwise XOR failed");
+        luaL_error(L, "number_bxor: Python bitwise XOR failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -650,7 +632,7 @@ int number_bxor(lua_State* L){
 int number_bnot(lua_State* L){
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to bitwise NOT a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_bnot: Attempt to bitwise NOT a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(lua_isnumber(L, -1))
@@ -670,13 +652,13 @@ int number_bnot(lua_State* L){
     }
     if (!py_a)
     {
-        luaL_error(L, "Failed to convert Lua number to Python number");
+        luaL_error(L, "number_bnot: Failed to convert Lua number to Python number");
         return 0;
     }
     PyObject* result = PyNumber_Invert(py_a);
     if (!result)
     {
-        luaL_error(L, "Python bitwise NOT failed");
+        luaL_error(L, "number_bnot: Python bitwise NOT failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -688,12 +670,12 @@ int number_bnot(lua_State* L){
 int number_shl(lua_State* L){
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to left shift a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_shl: Attempt to left shift a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to left shift on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_shl: Attempt to left shift on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
@@ -723,13 +705,13 @@ int number_shl(lua_State* L){
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_shl: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
-    PyObject* result = PyNumber_Lshift(py_b, py_a); // 注意参数顺序
+    PyObject* result = PyNumber_Lshift(py_b, py_a);
     if (!result)
     {
-        luaL_error(L, "Python left shift failed");
+        luaL_error(L, "number_shl: Python left shift failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -743,12 +725,12 @@ int number_shl(lua_State* L){
 int number_shr(lua_State* L){
     if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1))
     {
-        luaL_error(L, "Attempt to right shift a %s value", luaL_typename(L, -1));
+        luaL_error(L, "number_shr: Attempt to right shift a %s value", luaL_typename(L, -1));
         return 0;
     }
     if(!lua_isnumber(L, -2) && !lua_isuserdata(L, -2))
     {
-        luaL_error(L, "Attempt to right shift on a %s value", luaL_typename(L, -2));
+        luaL_error(L, "number_shr: Attempt to right shift on a %s value", luaL_typename(L, -2));
         return 0;
     }
     if(lua_isnumber(L, -1) && lua_isnumber(L, -2))
@@ -778,13 +760,13 @@ int number_shr(lua_State* L){
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua numbers to Python numbers");
+        luaL_error(L, "number_shr: Failed to convert Lua numbers to Python numbers");
         return 0;
     }
-    PyObject* result = PyNumber_Rshift(py_b, py_a); // 注意参数顺序
+    PyObject* result = PyNumber_Rshift(py_b, py_a);
     if (!result)
     {
-        luaL_error(L, "Python right shift failed");
+        luaL_error(L, "number_shr: Python right shift failed");
         return 0;
     }
     pushNumberLua(L, result);
@@ -796,7 +778,7 @@ int number_shr(lua_State* L){
 }
 
 int number_concat(lua_State* L){
-    luaL_error(L, "Attempt to concatenate on a %s value", luaL_typename(L, -2));
+    luaL_error(L, "number_concat: Attempt to concatenate on a %s value", luaL_typename(L, -2));
     return 0;
 }
 
@@ -808,7 +790,6 @@ int number_len(lua_State* L){
         lua_pushinteger(L, len);
         return 1;
     }
-    // Python对象长度
     PyObject* py_a = nullptr;
     bool release_a = false;
     if(lua_isstring(L, -1)){
@@ -820,13 +801,13 @@ int number_len(lua_State* L){
     }
     if (!py_a)
     {
-        luaL_error(L, "Failed to convert Lua value to Python object");
+        luaL_error(L, "number_len: Failed to convert Lua value to Python object");
         return 0;
     }
     Py_ssize_t result = PyObject_Length(py_a);
     if (result < 0)
     {
-        luaL_error(L, "Python length failed");
+        luaL_error(L, "number_len: Python length failed");
         Py_DECREF(py_a);
         return 0;
     }
@@ -864,7 +845,7 @@ int number_eq(lua_State* L){
         }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua values to Python objects");
+        luaL_error(L, "number_eq: Failed to convert Lua values to Python objects");
         return 0;
     }
     int result = PyObject_RichCompareBool(py_b, py_a, Py_EQ);
@@ -904,7 +885,7 @@ int number_lt(lua_State* L){
     }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua values to Python objects");
+        luaL_error(L, "number_lt: Failed to convert Lua values to Python objects");
         return 0;
     }
     int result = PyObject_RichCompareBool(py_b, py_a, Py_LT);
@@ -944,7 +925,7 @@ int number_le(lua_State* L){
         }
     if (!py_a || !py_b)
     {
-        luaL_error(L, "Failed to convert Lua values to Python objects");
+        luaL_error(L, "number_le: Failed to convert Lua values to Python objects");
         return 0;
     }
     int result = PyObject_RichCompareBool(py_b, py_a, Py_LE);
@@ -965,13 +946,13 @@ int number_tostring(lua_State* L){
     PyObject* py_a = *(PyObject**)lua_touserdata(L, -1);
     if (!py_a)
     {
-        luaL_error(L, "Failed to convert Lua value to Python object");
+        luaL_error(L, "number_tostring: Failed to convert Lua value to Python object");
         return 0;
     }
     PyObject* result = PyObject_Str(py_a);
     if (!result)
     {
-        luaL_error(L, "Python string conversion failed");
+        luaL_error(L, "number_tostring: Python string conversion failed");
         return 0;
     }
     lua_pushstring(L, PyUnicode_AsUTF8(result));
@@ -981,7 +962,7 @@ int number_tostring(lua_State* L){
 
 int pushNumberLua(lua_State* L, PyObject* number) {
     if(!PyNumber_Check(number)){
-        luaL_error(L, "Failed to set metatable for number");
+        luaL_error(L, "pushNumberLua: Failed to set metatable for number");
         return 0;
     }
     if(PyLong_Check(number)){
