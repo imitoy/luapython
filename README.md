@@ -13,12 +13,11 @@ A Lua binding for Python.
 git clone https://github.com/imitoy/luapython.git
 cd luapython
 make # Requires Lua and Python headers
+sudo make install
+# when uninstall, just replace with `uninstall`
 ```
 3. Import this library in Lua.
 ```lua
--- Add cpath
-package.cpath=package.cpath..";./?.so" -- Use .dll on Windows
-
 -- Import all
 luapython=require "luapython"
 -- Then use luapython.import, luapython.dict ...
