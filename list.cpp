@@ -1,8 +1,9 @@
 #include "luapython.hpp"
 
 static bool is_pylist(lua_State* L, int index) {
-    if (!lua_isuserdata(L, index)) return false;
-    
+    if (!lua_isuserdata(L, index))
+        return false;
+
     if (lua_getmetatable(L, index)) {
         luaL_getmetatable(L, "luapython.list");
         bool is_same = lua_rawequal(L, -1, -2);
@@ -30,23 +31,21 @@ int list_len(lua_State* L) {
 }
 
 int list_eq(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pylist(L, -1)) || 
-        !(lua_istable(L, -2) || is_pylist(L, -2))) {
-        luaL_error(L, "list_eq: Attempt to compare %s and %s as lists", 
-                  luaL_typename(L, -2), luaL_typename(L, -1));
+    if (!(lua_istable(L, -1) || is_pylist(L, -1)) || !(lua_istable(L, -2) || is_pylist(L, -2))) {
+        luaL_error(L, "list_eq: Attempt to compare %s and %s as lists", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
     PyObject* py_list1 = nullptr;
     PyObject* py_list2 = nullptr;
-    
+
     if (lua_istable(L, -2)) {
         py_list1 = convertPython(L, -2);
     } else {
         py_list1 = *(PyObject**)lua_touserdata(L, -2);
         Py_INCREF(py_list1);
     }
-    
+
     if (lua_istable(L, -1)) {
         py_list2 = convertPython(L, -1);
     } else {
@@ -55,8 +54,10 @@ int list_eq(lua_State* L) {
     }
 
     if (!py_list1 || !py_list2) {
-        if (py_list1) Py_DECREF(py_list1);
-        if (py_list2) Py_DECREF(py_list2);
+        if (py_list1)
+            Py_DECREF(py_list1);
+        if (py_list2)
+            Py_DECREF(py_list2);
         luaL_error(L, "list_eq: Failed to create Python lists");
         return 0;
     }
@@ -64,7 +65,7 @@ int list_eq(lua_State* L) {
     int result = PyObject_RichCompareBool(py_list1, py_list2, Py_EQ);
     Py_DECREF(py_list1);
     Py_DECREF(py_list2);
-    
+
     lua_pushboolean(L, result);
     return 1;
 }
@@ -81,7 +82,7 @@ int list_index(lua_State* L) {
     }
 
     lua_Integer idx = lua_tointeger(L, -1);
-    
+
     if (lua_istable(L, -1)) {
         lua_pushinteger(L, idx);
         lua_gettable(L, -2);
@@ -91,7 +92,7 @@ int list_index(lua_State* L) {
     PyObject* py_list = *(PyObject**)lua_touserdata(L, -2);
     Py_ssize_t len = PyList_Size(py_list);
     Py_ssize_t py_idx = idx - 1;
-    
+
     if (py_idx < 0 || py_idx >= len) {
         lua_pushnil(L);
         return 1;
@@ -114,7 +115,7 @@ int list_newindex(lua_State* L) {
     }
 
     lua_Integer idx = lua_tointeger(L, -2);
-    
+
     if (lua_istable(L, -3)) {
         lua_pushinteger(L, idx);
         lua_pushvalue(L, -1);
@@ -125,7 +126,7 @@ int list_newindex(lua_State* L) {
     PyObject* py_list = *(PyObject**)lua_touserdata(L, -3);
     Py_ssize_t len = PyList_Size(py_list);
     Py_ssize_t py_idx = idx - 1;
-    
+
     if (py_idx < 0 || py_idx >= len) {
         luaL_error(L, "list_newindex: List index out of range");
         return 0;
@@ -141,13 +142,13 @@ int list_newindex(lua_State* L) {
     Py_INCREF(old_value);
     int result = PyList_SetItem(py_list, py_idx, py_value);
     Py_DECREF(old_value);
-    
+
     if (result < 0) {
         Py_DECREF(py_value);
         luaL_error(L, "list_newindex: Failed to set list item");
         return 0;
     }
-    
+
     return 0;
 }
 
@@ -168,37 +169,35 @@ int list_tostring(lua_State* L) {
         luaL_error(L, "list_tostring: Failed to convert Python list to string");
         return 0;
     }
-    
+
     const char* str = PyUnicode_AsUTF8(str_repr);
     if (!str) {
         Py_DECREF(str_repr);
         luaL_error(L, "list_tostring: Failed to get string representation");
         return 0;
     }
-    
+
     lua_pushstring(L, str);
     Py_DECREF(str_repr);
     return 1;
 }
 
 int list_add(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pylist(L, -1)) || 
-        !(lua_istable(L, -2) || is_pylist(L, -2))) {
-        luaL_error(L, "list_add: Attempt to concatenate %s and %s", 
-                  luaL_typename(L, -2), luaL_typename(L, -1));
+    if (!(lua_istable(L, -1) || is_pylist(L, -1)) || !(lua_istable(L, -2) || is_pylist(L, -2))) {
+        luaL_error(L, "list_add: Attempt to concatenate %s and %s", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
     PyObject* py_list1 = nullptr;
     PyObject* py_list2 = nullptr;
-    
+
     if (lua_istable(L, -2)) {
         py_list1 = convertPython(L, -2);
     } else {
         py_list1 = *(PyObject**)lua_touserdata(L, -2);
         Py_INCREF(py_list1);
     }
-    
+
     if (lua_istable(L, -1)) {
         py_list2 = convertPython(L, -1);
     } else {
@@ -207,8 +206,10 @@ int list_add(lua_State* L) {
     }
 
     if (!py_list1 || !py_list2) {
-        if (py_list1) Py_DECREF(py_list1);
-        if (py_list2) Py_DECREF(py_list2);
+        if (py_list1)
+            Py_DECREF(py_list1);
+        if (py_list2)
+            Py_DECREF(py_list2);
         luaL_error(L, "list_add: Failed to create Python lists");
         return 0;
     }
@@ -220,13 +221,13 @@ int list_add(lua_State* L) {
         luaL_error(L, "list_add: Failed to create new list");
         return 0;
     }
-    
+
     for (Py_ssize_t i = 0; i < PyList_Size(py_list1); ++i) {
         PyObject* item = PyList_GetItem(py_list1, i);
         Py_INCREF(item);
         PyList_SetItem(result, i, item);
     }
-    
+
     Py_ssize_t offset = PyList_Size(py_list1);
     for (Py_ssize_t i = 0; i < PyList_Size(py_list2); ++i) {
         PyObject* item = PyList_GetItem(py_list2, i);
@@ -269,7 +270,7 @@ int list_mul(lua_State* L) {
 
     PyObject* result = PySequence_Repeat(py_list, n);
     Py_DECREF(py_list);
-    
+
     if (!result) {
         luaL_error(L, "list_mul: Failed to repeat list");
         return 0;
@@ -279,7 +280,7 @@ int list_mul(lua_State* L) {
     return 1;
 }
 
-int pushListLua(lua_State* L, PyObject* list) { 
+int pushListLua(lua_State* L, PyObject* list) {
     if (lua_touserdata(L, -1) != list) {
         luaL_error(L, "pushListLua: Failed to set metatable for list");
         return 0;

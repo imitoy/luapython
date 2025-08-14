@@ -2,8 +2,9 @@
 
 // 检查是否为Python集合对象
 static bool is_pyset(lua_State* L, int index) {
-    if (!lua_isuserdata(L, index)) return false;
-    
+    if (!lua_isuserdata(L, index))
+        return false;
+
     // 获取元表
     if (lua_getmetatable(L, index)) {
         luaL_getmetatable(L, "luapython.set");
@@ -32,23 +33,21 @@ int set_len(lua_State* L) {
 }
 
 int set_eq(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || 
-        !(lua_istable(L, -2) || is_pyset(L, -2))) {
-        luaL_error(L, "set_eq: Attempt to compare %s and %s as sets", 
-                  luaL_typename(L, -2), luaL_typename(L, -1));
+    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+        luaL_error(L, "set_eq: Attempt to compare %s and %s as sets", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
     PyObject* py_set1 = nullptr;
     PyObject* py_set2 = nullptr;
-    
+
     if (lua_istable(L, -2)) {
         py_set1 = convertPython(L, -2);
     } else {
         py_set1 = *(PyObject**)lua_touserdata(L, -2);
         Py_INCREF(py_set1);
     }
-    
+
     if (lua_istable(L, -1)) {
         py_set2 = convertPython(L, -1);
     } else {
@@ -57,8 +56,10 @@ int set_eq(lua_State* L) {
     }
 
     if (!py_set1 || !py_set2) {
-        if (py_set1) Py_DECREF(py_set1);
-        if (py_set2) Py_DECREF(py_set2);
+        if (py_set1)
+            Py_DECREF(py_set1);
+        if (py_set2)
+            Py_DECREF(py_set2);
         luaL_error(L, "set_eq: Failed to create Python sets");
         return 0;
     }
@@ -66,7 +67,7 @@ int set_eq(lua_State* L) {
     int result = PyObject_RichCompareBool(py_set1, py_set2, Py_EQ);
     Py_DECREF(py_set1);
     Py_DECREF(py_set2);
-    
+
     lua_pushboolean(L, result);
     return 1;
 }
@@ -93,7 +94,7 @@ int set_newindex(lua_State* L) {
         return 0;
     }
 
-    //if there is a table, we are not at the side
+    // if there is a table, we are not at the side
 
     /*if (lua_istable(L, -3)) {
         lua_pushvalue(L, 2); // key
@@ -124,37 +125,35 @@ int set_tostring(lua_State* L) {
         luaL_error(L, "set_tostring: Failed to convert Python set to string");
         return 0;
     }
-    
+
     const char* str = PyUnicode_AsUTF8(str_repr);
     if (!str) {
         Py_DECREF(str_repr);
         luaL_error(L, "set_tostring: Failed to get string representation");
         return 0;
     }
-    
+
     lua_pushstring(L, str);
     Py_DECREF(str_repr);
     return 1;
 }
 
 int set_add(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || 
-        !(lua_istable(L, -2) || is_pyset(L, -2))) {
-        luaL_error(L, "set_add: Attempt to perform union on %s and %s", 
-                  luaL_typename(L, -2), luaL_typename(L, -1));
+    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+        luaL_error(L, "set_add: Attempt to perform union on %s and %s", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
     PyObject* py_set1 = nullptr;
     PyObject* py_set2 = nullptr;
-    
+
     if (lua_istable(L, -1)) {
         py_set1 = convertPython(L, -1);
     } else {
         py_set1 = *(PyObject**)lua_touserdata(L, -1);
         Py_INCREF(py_set1);
     }
-    
+
     if (lua_istable(L, -2)) {
         py_set2 = convertPython(L, -2);
     } else {
@@ -163,8 +162,10 @@ int set_add(lua_State* L) {
     }
 
     if (!py_set1 || !py_set2) {
-        if (py_set1) Py_DECREF(py_set1);
-        if (py_set2) Py_DECREF(py_set2);
+        if (py_set1)
+            Py_DECREF(py_set1);
+        if (py_set2)
+            Py_DECREF(py_set2);
         luaL_error(L, "set_add: Failed to create Python sets");
         return 0;
     }
@@ -172,7 +173,7 @@ int set_add(lua_State* L) {
     PyObject* result = PyNumber_Or(py_set1, py_set2);
     Py_DECREF(py_set1);
     Py_DECREF(py_set2);
-    
+
     if (!result) {
         luaL_error(L, "set_add: Python set union failed");
         return 0;
@@ -183,23 +184,22 @@ int set_add(lua_State* L) {
 }
 
 int set_mul(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || 
-        !(lua_istable(L, -2) || is_pyset(L, -2))) {
-        luaL_error(L, "set_mul: Attempt to perform intersection on %s and %s", 
-                  luaL_typename(L, -2), luaL_typename(L, -1));
+    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+        luaL_error(L, "set_mul: Attempt to perform intersection on %s and %s", luaL_typename(L, -2),
+                   luaL_typename(L, -1));
         return 0;
     }
 
     PyObject* py_set1 = nullptr;
     PyObject* py_set2 = nullptr;
-    
+
     if (lua_istable(L, -1)) {
         py_set1 = convertPython(L, -1);
     } else {
         py_set1 = *(PyObject**)lua_touserdata(L, -1);
         Py_INCREF(py_set1);
     }
-    
+
     if (lua_istable(L, -2)) {
         py_set2 = convertPython(L, -2);
     } else {
@@ -208,8 +208,10 @@ int set_mul(lua_State* L) {
     }
 
     if (!py_set1 || !py_set2) {
-        if (py_set1) Py_DECREF(py_set1);
-        if (py_set2) Py_DECREF(py_set2);
+        if (py_set1)
+            Py_DECREF(py_set1);
+        if (py_set2)
+            Py_DECREF(py_set2);
         luaL_error(L, "set_mul: Failed to create Python sets");
         return 0;
     }
@@ -217,7 +219,7 @@ int set_mul(lua_State* L) {
     PyObject* result = PyNumber_And(py_set1, py_set2);
     Py_DECREF(py_set1);
     Py_DECREF(py_set2);
-    
+
     if (!result) {
         luaL_error(L, "set_mul: Python set intersection failed");
         return 0;
@@ -228,23 +230,22 @@ int set_mul(lua_State* L) {
 }
 
 int set_sub(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || 
-        !(lua_istable(L, -2) || is_pyset(L, -2))) {
-        luaL_error(L, "set_sub: Attempt to perform difference on %s and %s", 
-                  luaL_typename(L, -2), luaL_typename(L, -1));
+    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+        luaL_error(L, "set_sub: Attempt to perform difference on %s and %s", luaL_typename(L, -2),
+                   luaL_typename(L, -1));
         return 0;
     }
 
     PyObject* py_set1 = nullptr;
     PyObject* py_set2 = nullptr;
-    
+
     if (lua_istable(L, -1)) {
         py_set1 = convertPython(L, -1);
     } else {
         py_set1 = *(PyObject**)lua_touserdata(L, -1);
         Py_INCREF(py_set1);
     }
-    
+
     if (lua_istable(L, -2)) {
         py_set2 = convertPython(L, -2);
     } else {
@@ -253,8 +254,10 @@ int set_sub(lua_State* L) {
     }
 
     if (!py_set1 || !py_set2) {
-        if (py_set1) Py_DECREF(py_set1);
-        if (py_set2) Py_DECREF(py_set2);
+        if (py_set1)
+            Py_DECREF(py_set1);
+        if (py_set2)
+            Py_DECREF(py_set2);
         luaL_error(L, "set_sub: Failed to create Python sets");
         return 0;
     }
@@ -262,7 +265,7 @@ int set_sub(lua_State* L) {
     PyObject* result = PyNumber_Subtract(py_set1, py_set2);
     Py_DECREF(py_set1);
     Py_DECREF(py_set2);
-    
+
     if (!result) {
         luaL_error(L, "set_sub: Python set difference failed");
         return 0;
@@ -273,23 +276,22 @@ int set_sub(lua_State* L) {
 }
 
 int set_bxor(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || 
-        !(lua_istable(L, -2) || is_pyset(L, -2))) {
-        luaL_error(L, "set_bxor: Attempt to perform symmetric difference on %s and %s", 
-                  luaL_typename(L, -2), luaL_typename(L, -1));
+    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+        luaL_error(L, "set_bxor: Attempt to perform symmetric difference on %s and %s", luaL_typename(L, -2),
+                   luaL_typename(L, -1));
         return 0;
     }
 
     PyObject* py_set1 = nullptr;
     PyObject* py_set2 = nullptr;
-    
+
     if (lua_istable(L, -1)) {
         py_set1 = convertPython(L, -1);
     } else {
         py_set1 = *(PyObject**)lua_touserdata(L, -1);
         Py_INCREF(py_set1);
     }
-    
+
     if (lua_istable(L, -2)) {
         py_set2 = convertPython(L, -2);
     } else {
@@ -298,8 +300,10 @@ int set_bxor(lua_State* L) {
     }
 
     if (!py_set1 || !py_set2) {
-        if (py_set1) Py_DECREF(py_set1);
-        if (py_set2) Py_DECREF(py_set2);
+        if (py_set1)
+            Py_DECREF(py_set1);
+        if (py_set2)
+            Py_DECREF(py_set2);
         luaL_error(L, "set_bxor: Failed to create Python sets");
         return 0;
     }
@@ -307,7 +311,7 @@ int set_bxor(lua_State* L) {
     PyObject* result = PyNumber_Xor(py_set1, py_set2);
     Py_DECREF(py_set1);
     Py_DECREF(py_set2);
-    
+
     if (!result) {
         luaL_error(L, "set_bxor: Python set symmetric difference failed");
         return 0;

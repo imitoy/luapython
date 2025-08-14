@@ -1,8 +1,9 @@
 #include "luapython.hpp"
 
 static bool is_pytuple(lua_State* L, int index) {
-    if (!lua_isuserdata(L, index)) return false;
-    
+    if (!lua_isuserdata(L, index))
+        return false;
+
     if (lua_getmetatable(L, index)) {
         luaL_getmetatable(L, "luapython.tuple");
         bool is_same = lua_rawequal(L, -1, -2);
@@ -30,23 +31,21 @@ int tuple_len(lua_State* L) {
 }
 
 int tuple_eq(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pytuple(L, -1)) || 
-        !(lua_istable(L, -2) || is_pytuple(L, -2))) {
-        luaL_error(L, "tuple_eq: Attempt to compare %s and %s as tuples", 
-                  luaL_typename(L, -2), luaL_typename(L, -1));
+    if (!(lua_istable(L, -1) || is_pytuple(L, -1)) || !(lua_istable(L, -2) || is_pytuple(L, -2))) {
+        luaL_error(L, "tuple_eq: Attempt to compare %s and %s as tuples", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
     PyObject* py_tuple1 = nullptr;
     PyObject* py_tuple2 = nullptr;
-    
+
     if (lua_istable(L, -1)) {
         py_tuple1 = convertPython(L, -1);
     } else {
         py_tuple1 = *(PyObject**)lua_touserdata(L, -1);
         Py_INCREF(py_tuple1);
     }
-    
+
     if (lua_istable(L, -2)) {
         py_tuple2 = convertPython(L, -2);
     } else {
@@ -55,8 +54,10 @@ int tuple_eq(lua_State* L) {
     }
 
     if (!py_tuple1 || !py_tuple2) {
-        if (py_tuple1) Py_DECREF(py_tuple1);
-        if (py_tuple2) Py_DECREF(py_tuple2);
+        if (py_tuple1)
+            Py_DECREF(py_tuple1);
+        if (py_tuple2)
+            Py_DECREF(py_tuple2);
         luaL_error(L, "tuple_eq: Failed to create Python tuples");
         return 0;
     }
@@ -64,7 +65,7 @@ int tuple_eq(lua_State* L) {
     int result = PyObject_RichCompareBool(py_tuple1, py_tuple2, Py_EQ);
     Py_DECREF(py_tuple1);
     Py_DECREF(py_tuple2);
-    
+
     lua_pushboolean(L, result);
     return 1;
 }
@@ -84,7 +85,7 @@ int tuple_index(lua_State* L) {
     long index = luaL_checkinteger(L, -1);
     Py_ssize_t py_index = index - 1;
     Py_ssize_t size = PyTuple_Size(py_tuple);
-    
+
     if (py_index < 0 || py_index >= size) {
         lua_pushnil(L);
         return 1;
@@ -112,21 +113,21 @@ int tuple_tostring(lua_State* L) {
         luaL_error(L, "tuple_tostring: Failed to convert Python tuple to string");
         return 0;
     }
-    
+
     const char* str = PyUnicode_AsUTF8(str_repr);
     if (!str) {
         Py_DECREF(str_repr);
         luaL_error(L, "tuple_tostring: Failed to get string representation");
         return 0;
     }
-    
+
     lua_pushstring(L, str);
     Py_DECREF(str_repr);
     return 1;
 }
 
-int pushTupleLua(lua_State*L, PyObject* tuple) { 
-    if(!PyTuple_Check(tuple)){
+int pushTupleLua(lua_State* L, PyObject* tuple) {
+    if (!PyTuple_Check(tuple)) {
         luaL_error(L, "pushTupleLua: Not a tuple");
         return 0;
     }
@@ -162,4 +163,3 @@ PyObject* convertTuplePython(lua_State* L, int index) {
     luaL_error(L, "convertTuplePython: Attempt to convert a %s value to Python tuple", luaL_typename(L, index));
     return nullptr;
 }
-

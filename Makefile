@@ -1,6 +1,12 @@
+PREFIX ?= /usr
+
+# -Wall -Wextra 
+
+PYTHON3 = python3.13
+
 CXX = g++
-CXXFLAGS = -Wall -Wextra -fPIC -g -I/usr/include/python3.13 -I/usr/include/python3.13    -DPYTHON_DYLIB_STR="libpython3.13.so"
-LDFLAGS = -llua -lm  -L/usr/lib -lpython3.13 -ldl  -lm  -ldl 
+CXXFLAGS = -shared -fPIC -g -I$(PREFIX)/include/lua5.4 -I$(PREFIX)/include/python3.13 -DPREFIX="\"$(PREFIX)\"" -DPYTHON_LIB="\"lib$(PYTHON3).so\""
+LDFLAGS = -lm -L/usr/lib -ldl "-l$(PYTHON3)"
 
 SOURCES = luapython.cpp boolean.cpp number.cpp string.cpp set.cpp dict.cpp list.cpp tuple.cpp module.cpp function.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
@@ -19,12 +25,13 @@ clean:
 	rm -f $(OBJECTS) $(TARGET)
 
 install: $(TARGET)
-	mkdir -p /usr/local/lib /usr/local/include
-	cp $(TARGET) /usr/local/lib/
-	cp luapython.hpp /usr/local/include/
+	mkdir -p $(PREFIX)/local/lib/lua/5.4/luapython/
+	cp $(TARGET) $(PREFIX)/local/lib/lua/5.4/
+	cp convert_pre.lua $(PREFIX)/local/lib/lua/5.4/luapython/
+	cp python_init.lua $(PREFIX)/local/lib/lua/5.4/luapython/
 
 uninstall:
-	rm -f /usr/local/lib/$(TARGET)
-	rm -f /usr/local/include/luapython.hpp
+	rm -rf $(PREFIX)/local/lib/lua/5.4/$(TARGET)
+	rm -rf $(PREFIX)/local/lib/lua/5.4/luapython/
 
 .PHONY: all clean install uninstall

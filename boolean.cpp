@@ -2,8 +2,9 @@
 
 // 检查是否为Python布尔对象
 static bool is_pyboolean(lua_State* L, int index) {
-    if (!lua_isuserdata(L, index)) return false;
-    
+    if (!lua_isuserdata(L, index))
+        return false;
+
     // 获取元表
     if (lua_getmetatable(L, index)) {
         luaL_getmetatable(L, "luapython.boolean");
@@ -28,17 +29,15 @@ static bool get_boolean_value(lua_State* L, int index) {
 // 布尔值相等比较
 int boolean_eq(lua_State* L) {
     // 检查两个操作数是否都是布尔类型（Lua布尔或Python布尔对象）
-    if (!(lua_isboolean(L, 1) || is_pyboolean(L, 1)) && 
-        !(lua_isboolean(L, 2) || is_pyboolean(L, 2))) {
-        luaL_error(L, "Attempt to compare %s and %s as booleans", 
-                  luaL_typename(L, 1), luaL_typename(L, 2));
+    if (!(lua_isboolean(L, 1) || is_pyboolean(L, 1)) && !(lua_isboolean(L, 2) || is_pyboolean(L, 2))) {
+        luaL_error(L, "Attempt to compare %s and %s as booleans", luaL_typename(L, 1), luaL_typename(L, 2));
         return 0;
     }
 
     // 获取操作数的布尔值
     bool a = get_boolean_value(L, 1);
     bool b = get_boolean_value(L, 2);
-    
+
     // 比较两个布尔值并返回结果
     lua_pushboolean(L, a == b);
     return 1;
@@ -60,10 +59,8 @@ int boolean_tostring(lua_State* L) {
 
 // 布尔值逻辑与
 int boolean_and(lua_State* L) {
-    if (!(lua_isboolean(L, 1) || is_pyboolean(L, 1)) || 
-        !(lua_isboolean(L, 2) || is_pyboolean(L, 2))) {
-        luaL_error(L, "Attempt to perform AND on %s and %s", 
-                  luaL_typename(L, 1), luaL_typename(L, 2));
+    if (!(lua_isboolean(L, 1) || is_pyboolean(L, 1)) || !(lua_isboolean(L, 2) || is_pyboolean(L, 2))) {
+        luaL_error(L, "Attempt to perform AND on %s and %s", luaL_typename(L, 1), luaL_typename(L, 2));
         return 0;
     }
 
@@ -75,10 +72,8 @@ int boolean_and(lua_State* L) {
 
 // 布尔值逻辑或
 int boolean_or(lua_State* L) {
-    if (!(lua_isboolean(L, 1) || is_pyboolean(L, 1)) || 
-        !(lua_isboolean(L, 2) || is_pyboolean(L, 2))) {
-        luaL_error(L, "Attempt to perform OR on %s and %s", 
-                  luaL_typename(L, 1), luaL_typename(L, 2));
+    if (!(lua_isboolean(L, 1) || is_pyboolean(L, 1)) || !(lua_isboolean(L, 2) || is_pyboolean(L, 2))) {
+        luaL_error(L, "Attempt to perform OR on %s and %s", luaL_typename(L, 1), luaL_typename(L, 2));
         return 0;
     }
 
@@ -101,7 +96,7 @@ int boolean_not(lua_State* L) {
 }
 
 int pushBooleanLua(lua_State* L, PyObject* boolean) {
-    if(!PyBool_Check(boolean)) {
+    if (!PyBool_Check(boolean)) {
         luaL_error(L, "Failed to set metatable for boolean");
         return 0;
     }
