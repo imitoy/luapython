@@ -21,17 +21,16 @@ package.cpath=package.cpath..";./?.so" -- Use .dll on Windows
 
 -- Import all
 luapython=require "luapython"
--- Then use luapython.import, luapython.set ...
+-- Then use luapython.import, luapython.dict ...
 
 -- Import all to _G or other env
 luapython=require "luapython"
 luapython:init(_G)
--- Then use _G.import, _G.set ...
+-- Then use _G.import, _G.dict ...
 
 -- Import specific function
 import=require "luapython.import"
-set=require "luapython.set"
--- Then use import, set ...
+-- Then use import
 ```
 
 4. Import python modules in Lua.
