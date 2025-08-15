@@ -113,5 +113,5 @@ PyObject* convertBoolean(lua_State* L, int index) {
         return py_bool;
     }
     luaL_error(L, "Attempt to convert a %s value to Python", luaL_typename(L, index));
-    return nullptr; // 如果不是布尔类型，返回nullptr
+    return nullptr;
 }

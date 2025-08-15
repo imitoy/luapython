@@ -26,18 +26,19 @@ int function_call(lua_State* L) {
             if (lua_isstring(L, -1)) {
                 const char* key = lua_tostring(L, -1);
                 PyObject* key_py = PyUnicode_FromString(key);
-                if (!PyDict_Contains(keys, key_py)) {
+                if (!PySequence_Contains(keys, key_py)) {
+                    lua_pop(L, 2);
                     Py_DECREF(key_py);
                     p = false;
                     break;
                 }
                 Py_DECREF(key_py);
             } else {
-                lua_pop(L, 1);
+                lua_pop(L, 2);
                 p = false;
                 break;
             }
-            lua_pop(L, 1);
+            lua_pop(L, 2);
         }
         Py_DECREF(parameters);
         Py_DECREF(keys);
@@ -63,7 +64,7 @@ int function_call(lua_State* L) {
                     Py_DECREF(value);
                     lua_pop(L, 1);
                 }
-                lua_pop(L, 1);
+                lua_pop(L, 2);
             }
             for (int i = 1; i <= len; i++) {
                 lua_geti(L, 3, i);

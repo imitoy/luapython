@@ -1,20 +1,7 @@
 #include "luapython.hpp"
 
-static bool is_pylist(lua_State* L, int index) {
-    if (!lua_isuserdata(L, index))
-        return false;
-
-    if (lua_getmetatable(L, index)) {
-        luaL_getmetatable(L, "luapython.list");
-        bool is_same = lua_rawequal(L, -1, -2);
-        lua_pop(L, 2); // 弹出两个元表
-        return is_same;
-    }
-    return false;
-}
-
 int list_len(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pylist(L, -1))) {
+    if (!(lua_istable(L, -1) || lua_isuserdata(L, -1))) {
         luaL_error(L, "list_len: Attempt to get length of %s", luaL_typename(L, -1));
         return 0;
     }
@@ -31,7 +18,7 @@ int list_len(lua_State* L) {
 }
 
 int list_eq(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pylist(L, -1)) || !(lua_istable(L, -2) || is_pylist(L, -2))) {
+    if (!(lua_istable(L, -1) || lua_isuserdata(L, -1)) || !(lua_istable(L, -2) || lua_isuserdata(L, -2))) {
         luaL_error(L, "list_eq: Attempt to compare %s and %s as lists", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
@@ -71,7 +58,7 @@ int list_eq(lua_State* L) {
 }
 
 int list_index(lua_State* L) {
-    if (!(lua_istable(L, -2) || is_pylist(L, -2))) {
+    if (!(lua_istable(L, -2) || lua_isuserdata(L, -2))) {
         luaL_error(L, "list_index: Attempt to index %s", luaL_typename(L, -2));
         return 0;
     }
@@ -91,7 +78,7 @@ int list_index(lua_State* L) {
 
     PyObject* py_list = *(PyObject**)lua_touserdata(L, -2);
     Py_ssize_t len = PyList_Size(py_list);
-    Py_ssize_t py_idx = idx - 1;
+    Py_ssize_t py_idx = idx;
 
     if (py_idx < 0 || py_idx >= len) {
         lua_pushnil(L);
@@ -104,7 +91,7 @@ int list_index(lua_State* L) {
 }
 
 int list_newindex(lua_State* L) {
-    if (!(lua_istable(L, -3) || is_pylist(L, -3))) {
+    if (!(lua_istable(L, -3) || lua_isuserdata(L, -3))) {
         luaL_error(L, "list_newindex: Attempt to assign to %s", luaL_typename(L, -3));
         return 0;
     }
@@ -153,7 +140,7 @@ int list_newindex(lua_State* L) {
 }
 
 int list_tostring(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pylist(L, -1))) {
+    if (!(lua_istable(L, -1) || lua_isuserdata(L, -1))) {
         luaL_error(L, "list_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
         return 0;
     }
@@ -183,7 +170,7 @@ int list_tostring(lua_State* L) {
 }
 
 int list_add(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pylist(L, -1)) || !(lua_istable(L, -2) || is_pylist(L, -2))) {
+    if (!(lua_istable(L, -1) || lua_isuserdata(L, -1)) || !(lua_istable(L, -2) || lua_isuserdata(L, -2))) {
         luaL_error(L, "list_add: Attempt to concatenate %s and %s", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
@@ -243,7 +230,7 @@ int list_add(lua_State* L) {
 }
 
 int list_mul(lua_State* L) {
-    if (!(lua_istable(L, -2) || is_pylist(L, -2)) || !lua_isinteger(L, -1)) {
+    if (!(lua_istable(L, -2) || lua_isuserdata(L, -2)) || !lua_isinteger(L, -1)) {
         luaL_error(L, "list_mul: Attempt to repeat %s with non-integer", luaL_typename(L, -2));
         return 0;
     }
@@ -281,8 +268,8 @@ int list_mul(lua_State* L) {
 }
 
 int pushListLua(lua_State* L, PyObject* list) {
-    if (lua_touserdata(L, -1) != list) {
-        luaL_error(L, "pushListLua: Failed to set metatable for list");
+    if (!PyList_Check(list)) {
+        luaL_error(L, "pushListLua: Attempt to push a non-list Python object");
         return 0;
     }
     void* ud = lua_newuserdata(L, sizeof(PyObject*));
@@ -322,7 +309,7 @@ PyObject* convertListPython(lua_State* L, int index) {
         }
         lua_pop(L, 1);
         return py_list;
-    } else if (is_pylist(L, index)) {
+    } else if (lua_isuserdata(L, index)) {
         PyObject* py_list = *(PyObject**)lua_touserdata(L, index);
         Py_INCREF(py_list);
         return py_list;

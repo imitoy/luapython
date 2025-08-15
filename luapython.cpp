@@ -90,13 +90,17 @@ int pushLua(lua_State* L, PyObject* obj) {
         return pushSetLua(L, obj);
     } else if (PyDict_Check(obj)) {
         return pushDictLua(L, obj);
+    } else if (PyTuple_Check(obj)) {
+        return pushTupleLua(L, obj);
+    } else if (PyList_Check(obj)) {
+        return pushListLua(L, obj);
     } else if (PyModule_Check(obj)) {
         return pushModuleLua(L, obj);
     } else if (PyCallable_Check(obj)) {
         return pushFunctionLua(L, obj);
     } else {
-        luaL_error(L, "Unsupported Python object type: %s for Lua metatable", Py_TYPE(obj)->tp_name);
-        return 0;
+        const char* type_name = Py_TYPE(obj)->tp_name;
+        return pushClassLua(L, obj);
     }
 }
 
@@ -123,18 +127,19 @@ PyObject* convertPython(lua_State* L, int index) {
             luaL_error(L, "Failed to load convert_pre.lua: %s", lua_tostring(L, -1));
             return nullptr;
         }
-        lua_pushvalue(L, index);
+        lua_pushvalue(L, index > 0 ? index + 1 : index - 1);
         if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
             luaL_error(L, "Error running function `convert`: %s", lua_tostring(L, -1));
             return nullptr;
         }
         PyObject* pyobject = nullptr;
-        if (lua_toboolean(L, -1)) {
+        bool is_dict = lua_toboolean(L, -1);
+        lua_pop(L, 1);
+        if (is_dict) {
             pyobject = convertDictPython(L, index);
         } else {
             pyobject = convertListPython(L, index);
         }
-        lua_pop(L, 1);
         return pyobject;
     }
     luaL_error(L, "Unsupported Lua type for conversion to Python: %s", luaL_typename(L, index));
@@ -185,7 +190,9 @@ extern "C" int luaopen_luapython_import(lua_State* L) {
 int main() {
     lua_State* L = luaL_newstate();
     luaL_openlibs(L);
-    luaopen_luapython(L);
+    luaL_loadfile(L, "example.lua");
+    lua_pcall(L, 0, 0, 0);
+    const char* s = lua_tostring(L, -1);
     lua_close(L);
     return 0;
 }

@@ -14,6 +14,7 @@ int pushTupleLua(lua_State* L, PyObject* tuple);
 int pushListLua(lua_State* L, PyObject* list);
 int pushFunctionLua(lua_State* L, PyObject* function);
 int pushModuleLua(lua_State* L, PyObject* module);
+int pushClassLua(lua_State* L, PyObject* obj);
 
 int pushLua(lua_State* L, PyObject* obj);
 
