@@ -4,7 +4,7 @@ A Lua binding for Python.
 
 **This project is under development...**
 
-## Usage (For now)
+## Quick start
 
 1. Install Lua and Python. (latest)
 
