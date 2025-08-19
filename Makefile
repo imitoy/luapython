@@ -5,8 +5,8 @@ PREFIX ?= /usr
 PYTHON3 = python3.13
 
 CXX = g++
-CXXFLAGS = -shared -fPIC -g -I$(PREFIX)/include/lua5.4 -I$(PREFIX)/include/python3.13 -DPREFIX="\"$(PREFIX)\"" -DPYTHON_LIB="\"lib$(PYTHON3).so\""
-LDFLAGS = -lm -L/usr/lib -ldl "-l$(PYTHON3)"
+CXXFLAGS = -shared -fPIC -g -I$(PREFIX)/include/lua5.4 $(shell python3-config --includes) -DPREFIX="\"$(PREFIX)\"" -DPYTHON_LIB="\"lib$(PYTHON3).so\""
+LDFLAGS = -lm -ldl $(shell python3-config --ldflags) "-lpython3.13"
 
 SOURCES = luapython.cpp boolean.cpp number.cpp string.cpp set.cpp dict.cpp list.cpp tuple.cpp module.cpp function.cpp class.cpp
 OBJECTS = $(SOURCES:.cpp=.o)
@@ -29,6 +29,7 @@ install: $(TARGET)
 	cp $(TARGET) $(PREFIX)/local/lib/lua/5.4/
 	cp convert_pre.lua $(PREFIX)/local/lib/lua/5.4/luapython/
 	cp python_init.lua $(PREFIX)/local/lib/lua/5.4/luapython/
+	cp import.lua $(PREFIX)/local/lib/lua/5.4/luapython/
 
 uninstall:
 	rm -rf $(PREFIX)/local/lib/lua/5.4/$(TARGET)

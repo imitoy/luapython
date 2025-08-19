@@ -11,14 +11,19 @@
 #endif
 
 static int python_import(lua_State* L) {
-    if (!lua_isstring(L, -1)) {
-        luaL_error(L, luaL_typename(L, -1));
+    if (!lua_isstring(L, -2)) {
+        luaL_error(L, luaL_typename(L, -2));
         return 0;
     }
-    const char* module_name = lua_tostring(L, -1);
+    const char* module_name = lua_tostring(L, -2);
     PyObject* module = PyImport_Import(PyUnicode_FromString(module_name));
     if (module == nullptr) {
-        luaL_error(L, "import error: no such python module: ", module_name);
+        bool b = PyErr_Occurred();
+        if (lua_toboolean(L, -1)) {
+            PyErr_Print();
+        } else {
+            PyErr_Clear();
+        }
         return 0;
     }
     pushLua(L, module);
@@ -156,7 +161,12 @@ extern "C" int luaopen_luapython(lua_State* L) {
         Py_Initialize();
     }
     lua_createtable(L, 0, 6);
+    std::string prefix1 = PREFIX;
+    std::string name1 = "/local/lib/lua/5.4/luapython/import.lua";
+    std::string path1 = prefix1 + name1;
+    luaL_loadfile(L, path1.c_str());
     lua_pushcfunction(L, python_import);
+    lua_call(L, 1, 1);
     lua_setfield(L, -2, "import");
     lua_pushcfunction(L, python_set);
     lua_setfield(L, -2, "set");
@@ -166,10 +176,10 @@ extern "C" int luaopen_luapython(lua_State* L) {
     lua_setfield(L, -2, "tuple");
     lua_pushcfunction(L, python_list);
     lua_setfield(L, -2, "list");
-    std::string prefix = PREFIX;
-    std::string name = "/local/lib/lua/5.4/luapython/python_init.lua";
-    std::string path = prefix + name;
-    luaL_loadfile(L, path.c_str());
+    std::string prefix2 = PREFIX;
+    std::string name2 = "/local/lib/lua/5.4/luapython/python_init.lua";
+    std::string path2 = prefix2 + name2;
+    luaL_loadfile(L, path2.c_str());
     lua_setfield(L, -2, "init");
     return 1;
 }
@@ -190,7 +200,7 @@ extern "C" int luaopen_luapython_import(lua_State* L) {
 int main() {
     lua_State* L = luaL_newstate();
     luaL_openlibs(L);
-    luaL_loadfile(L, "example.lua");
+    luaL_loadfile(L, "/home/imitoy/Coding/MiniData/get.lua");
     lua_pcall(L, 0, 0, 0);
     const char* s = lua_tostring(L, -1);
     lua_close(L);

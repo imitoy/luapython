@@ -79,6 +79,13 @@ int function_call(lua_State* L) {
             }
             lua_pop(L, 1);
             PyObject* result = PyObject_Call(function, args, kwargs);
+            if (PyErr_Occurred()) {
+                PyErr_Print();
+                luaL_error(L, "function_call: Error calling function");
+                Py_DECREF(args);
+                Py_DECREF(kwargs);
+                return 0;
+            }
             pushLua(L, result); // here need to decref result possibly
             Py_DECREF(args);
             return 1;
