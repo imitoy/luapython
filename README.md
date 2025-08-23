@@ -46,3 +46,19 @@ json=import"json"
 local data = dict{name="Alice", age=18}
 print(json.dumps(data))
 ```
+
+6. Create a table to adapt keywords parameters.
+```lua
+OpenAI = import"openai.OpenAI"
+local client = OpenAI({api_key="<DeepSeek API Key>", base_url="https://api.deepseek.com"})
+
+local response = client.chat.completions.create({
+    model="deepseek-chat",
+    messages={
+        {role = "system", content = "You are a helpful assistant"},
+        {role = "user", content = "Hello"},
+    },
+    stream=false
+})
+
+print(response.choices[0].message.content)
