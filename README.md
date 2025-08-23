@@ -1,6 +1,6 @@
 # luapython
 
-A Lua binding for Python.
+Library of using Python in Lua.
 
 **This project is under development...**
 
