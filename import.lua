@@ -18,9 +18,7 @@ return function(module_name)
     local index = string.find(module_name, "%.")
     if index then
         local submodule_name = string.sub(module_name, 1, index - 1)
-        print(submodule_name, #submodule_name)
         module = func(submodule_name, true)
-        print(module)
     end
 
     if module then
