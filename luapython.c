@@ -1,10 +1,5 @@
-#include "luapython.hpp"
+#include "luapython.h"
 #include <dlfcn.h>
-#include <string>
-
-#ifndef PREFIX
-#define PREFIX "/usr"
-#endif
 
 #ifndef PYTHON_LIB
 #define PYTHON_LIB "libpython3.13.so"
@@ -17,7 +12,7 @@ static int python_import(lua_State* L) {
     }
     const char* module_name = lua_tostring(L, -2);
     PyObject* module = PyImport_Import(PyUnicode_FromString(module_name));
-    if (module == nullptr) {
+    if (module == NULL) {
         bool b = PyErr_Occurred();
         if (lua_toboolean(L, -1)) {
             PyErr_Print();
@@ -86,6 +81,19 @@ int python_gc(lua_State* L) {
     return 0;
 }
 
+bool isPythonObject(lua_State* L, int index) {
+    if (lua_getmetatable(L, index) == 1) {
+        lua_getfield(L, -1, "__name");
+        if (lua_type(L, -1) == LUA_TSTRING) {
+            const char* name = lua_tostring(L, -1);
+            lua_pop(L, 2);
+            return strcmp(name, PYTHON_OBJECT_NAME) == 0;
+        }
+        lua_pop(L, 2);
+    }
+    return false;
+}
+
 int pushLua(lua_State* L, PyObject* obj) {
     if (PyNumber_Check(obj)) {
         return pushNumberLua(L, obj);
@@ -124,20 +132,22 @@ PyObject* convertPython(lua_State* L, int index) {
         Py_INCREF(Py_None);
         return Py_None;
     } else if (lua_istable(L, index)) {
-        std::string prefix = PREFIX;
-        std::string name = "/local/lib/lua/5.4/luapython/convert_pre.lua";
-        std::string path = prefix + name;
-        int ret = luaL_loadfile(L, path.c_str());
+        const char prefix[] = PREFIX;
+        const char name[] = "/local/lib/lua/5.4/luapython/convert_pre.lua";
+        char path[strlen(prefix) + strlen(name) + 1];
+        strcpy((char*)path, prefix);
+        strcat((char*)path, name);
+        int ret = luaL_loadfile(L, path);
         if (ret != LUA_OK) {
             luaL_error(L, "Failed to load convert_pre.lua: %s", lua_tostring(L, -1));
-            return nullptr;
+            return NULL;
         }
         lua_pushvalue(L, index > 0 ? index + 1 : index - 1);
         if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
             luaL_error(L, "Error running function `convert`: %s", lua_tostring(L, -1));
-            return nullptr;
+            return NULL;
         }
-        PyObject* pyobject = nullptr;
+        PyObject* pyobject = NULL;
         bool is_dict = lua_toboolean(L, -1);
         lua_pop(L, 1);
         if (is_dict) {
@@ -148,10 +158,10 @@ PyObject* convertPython(lua_State* L, int index) {
         return pyobject;
     }
     luaL_error(L, "Unsupported Lua type for conversion to Python: %s", luaL_typename(L, index));
-    return nullptr;
+    return NULL;
 }
 
-extern "C" int luaopen_luapython(lua_State* L) {
+int luaopen_luapython(lua_State* L) {
     void* handle = dlopen(PYTHON_LIB, RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
         luaL_error(L, "Failed to load %s: %s", PYTHON_LIB, dlerror());
@@ -161,10 +171,12 @@ extern "C" int luaopen_luapython(lua_State* L) {
         Py_Initialize();
     }
     lua_createtable(L, 0, 6);
-    std::string prefix1 = PREFIX;
-    std::string name1 = "/local/lib/lua/5.4/luapython/import.lua";
-    std::string path1 = prefix1 + name1;
-    luaL_loadfile(L, path1.c_str());
+    const char prefix[] = PREFIX;
+    const char name[] = "/local/lib/lua/5.4/luapython/import.lua";
+    char path1[strlen(prefix) + strlen(name) + 1];
+    strcpy((char*)path1, prefix);
+    strcat((char*)path1, name);
+    luaL_loadfile(L, path1);
     lua_pushcfunction(L, python_import);
     lua_call(L, 1, 1);
     lua_setfield(L, -2, "import");
@@ -176,15 +188,17 @@ extern "C" int luaopen_luapython(lua_State* L) {
     lua_setfield(L, -2, "tuple");
     lua_pushcfunction(L, python_list);
     lua_setfield(L, -2, "list");
-    std::string prefix2 = PREFIX;
-    std::string name2 = "/local/lib/lua/5.4/luapython/python_init.lua";
-    std::string path2 = prefix2 + name2;
-    luaL_loadfile(L, path2.c_str());
+    const char prefix2[] = PREFIX;
+    const char name2[] = "/local/lib/lua/5.4/luapython/python_init.lua";
+    char path2[strlen(prefix2) + strlen(name2) + 1];
+    strcpy((char*)path2, prefix2);
+    strcat((char*)path2, name2);
+    luaL_loadfile(L, path2);
     lua_setfield(L, -2, "init");
     return 1;
 }
 
-extern "C" int luaopen_luapython_import(lua_State* L) {
+int luaopen_luapython_import(lua_State* L) {
     void* handle = dlopen(PYTHON_LIB, RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
         luaL_error(L, "Failed to load %s: %s", PYTHON_LIB, dlerror());
@@ -200,7 +214,7 @@ extern "C" int luaopen_luapython_import(lua_State* L) {
 int main() {
     lua_State* L = luaL_newstate();
     luaL_openlibs(L);
-    luaL_loadfile(L, "/home/imitoy/Coding/MiniData/get.lua");
+    luaL_loadfile(L, "/mnt/e.lua");
     lua_pcall(L, 0, 0, 0);
     const char* s = lua_tostring(L, -1);
     lua_close(L);

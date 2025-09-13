@@ -1,17 +1,9 @@
-#include "luapython.hpp"
-static bool is_pydict(lua_State* L, int index) {
-    if (!lua_isuserdata(L, index)) return false;
-    
-    if (lua_getmetatable(L, index)) {
-        luaL_getmetatable(L, "luapython.dict");
-        bool is_same = lua_rawequal(L, -1, -2);
-        lua_pop(L, 2);
-        return is_same;
-    }
-    return false;
-}
+#include "luapython.h"
+
+#define isPythonDict(L, index) (isPythonObject(L, index) && PyDict_Check(*(PyObject**)lua_touserdata(L, index)))
+
 int dict_len(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pydict(L, -1))) {
+    if (!(lua_istable(L, -1) || isPythonDict(L, -1))) {
         luaL_error(L, "dict_len: Attempt to get length of %s", luaL_typename(L, -1));
         return 0;
     }
@@ -28,15 +20,15 @@ int dict_len(lua_State* L) {
 }
 
 int dict_eq(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pydict(L, -1)) || 
-        !(lua_istable(L, -2) || is_pydict(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonDict(L, -1)) || 
+        !(lua_istable(L, -2) || isPythonDict(L, -2))) {
         luaL_error(L, "dict_eq: Attempt to compare %s and %s as dictionaries", 
                   luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
-    PyObject* py_dict1 = nullptr;
-    PyObject* py_dict2 = nullptr;
+    PyObject* py_dict1 = NULL;
+    PyObject* py_dict2 = NULL;
     
     if (lua_istable(L, -1)) {
         py_dict1 = convertPython(L, -1);
@@ -67,7 +59,7 @@ int dict_eq(lua_State* L) {
     return 1;
 }
 int dict_index(lua_State* L) {
-    if (!(lua_istable(L, -2) || is_pydict(L, -2))) {
+    if (!(lua_istable(L, -2) || isPythonDict(L, -2))) {
         luaL_error(L, "dict_index: Attempt to index %s", luaL_typename(L, -2));
         return 0;
     }
@@ -99,7 +91,7 @@ int dict_index(lua_State* L) {
 }
 
 int dict_newindex(lua_State* L) {
-    if (!(lua_istable(L, -3) || is_pydict(L, -3))) {
+    if (!(lua_istable(L, -3) || isPythonDict(L, -3))) {
         luaL_error(L, "dict_newindex: Attempt to assign to %s", luaL_typename(L, -3));
         return 0;
     }
@@ -135,7 +127,7 @@ int dict_newindex(lua_State* L) {
 }
 
 int dict_tostring(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pydict(L, -1))) {
+    if (!(lua_istable(L, -1) || isPythonDict(L, -1))) {
         luaL_error(L, "dict_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
         return 0;
     }
@@ -165,15 +157,15 @@ int dict_tostring(lua_State* L) {
 }
 
 int dict_add(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pydict(L, -1)) || 
-        !(lua_istable(L, -2) || is_pydict(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonDict(L, -1)) || 
+        !(lua_istable(L, -2) || isPythonDict(L, -2))) {
         luaL_error(L, "dict_add: Attempt to merge %s and %s", 
                   luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
-    PyObject* py_dict1 = nullptr;
-    PyObject* py_dict2 = nullptr;
+    PyObject* py_dict1 = NULL;
+    PyObject* py_dict2 = NULL;
     
     if (lua_istable(L, -1)) {
         py_dict1 = convertPython(L, -1);
@@ -218,15 +210,15 @@ int dict_add(lua_State* L) {
 }
 
 int dict_mul(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pydict(L, -1)) || 
-        !(lua_istable(L, -2) || is_pydict(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonDict(L, -1)) || 
+        !(lua_istable(L, -2) || isPythonDict(L, -2))) {
         luaL_error(L, "dict_mul: Attempt to perform intersection on %s and %s", 
                   luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
-    PyObject* py_dict1 = nullptr;
-    PyObject* py_dict2 = nullptr;
+    PyObject* py_dict1 = NULL;
+    PyObject* py_dict2 = NULL;
     
     if (lua_istable(L, -1)) {
         py_dict1 = convertPython(L, -1);
@@ -273,15 +265,15 @@ int dict_mul(lua_State* L) {
 }
 
 int dict_sub(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pydict(L, -1)) || 
-        !(lua_istable(L, -2) || is_pydict(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonDict(L, -1)) || 
+        !(lua_istable(L, -2) || isPythonDict(L, -2))) {
         luaL_error(L, "dict_sub: Attempt to perform difference on %s and %s", 
                   luaL_typename(L, -1), luaL_typename(L, -2));
         return 0;
     }
 
-    PyObject* py_dict1 = nullptr;
-    PyObject* py_dict2 = nullptr;
+    PyObject* py_dict1 = NULL;
+    PyObject* py_dict2 = NULL;
     
     if (lua_istable(L, -1)) {
         py_dict1 = convertPython(L, -1);
@@ -327,15 +319,26 @@ int dict_sub(lua_State* L) {
     return 1;
 }
 
-int pushDictLua(lua_State*L, PyObject* dict) {
-    if(!PyDict_Check(dict)){
+int table_dict_index = 0;
+
+int pushDictLua(lua_State*L, PyObject* obj) {
+    if(!PyDict_Check(obj)){
         luaL_error(L, "pushDictLua: Not a dict");
         return 0;
     }
-    void* userdata = lua_newuserdata(L, sizeof(PyObject*));
-    *(PyObject**)userdata = dict;
-    Py_INCREF(dict);
-    lua_createtable(L, 0, 9);
+    if (table_dict_index != 0) {
+        void* point = lua_newuserdata(L, sizeof(PyObject*));
+        *(PyObject**)point = obj;
+        Py_INCREF(obj);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, table_dict_index);
+        if (!lua_istable(L, -1)) {
+            luaL_error(L, "pushDictLua: Internal error, class index is not a table");
+            return 0;
+        }
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+    lua_createtable(L, 0, 10);
     lua_pushcfunction(L, dict_len);
     lua_setfield(L, -2, "__len");
     lua_pushcfunction(L, dict_eq);
@@ -354,8 +357,10 @@ int pushDictLua(lua_State*L, PyObject* dict) {
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
-    lua_setmetatable(L, -2);
-    return 1;
+    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_setfield(L, -2, "__name");
+    table_dict_index = luaL_ref(L, LUA_REGISTRYINDEX);
+    return pushDictLua(L, obj);
 }
 
 PyObject* convertDictPython(lua_State* L, int index) {
@@ -379,18 +384,18 @@ PyObject* convertDictPython(lua_State* L, int index) {
                     Py_XDECREF(py_value);
                     Py_DECREF(py_dict);
                     luaL_error(L, "convertDictPython: Failed to convert Lua table to Python dictionary");
-                    return nullptr;
+                    return NULL;
                 }
             }
             lua_pop(L, 1);
         }
         lua_pop(L, 1);
         return py_dict;
-    } else if (is_pydict(L, index)) {
+    } else if (isPythonDict(L, index)) {
         PyObject* py_dict = *(PyObject**)lua_touserdata(L, index);
         Py_INCREF(py_dict);
         return py_dict;
     }
     luaL_error(L, "convertDictPython: Attempt to convert a %s value to Python dictionary", luaL_typename(L, index));
-    return nullptr;
+    return NULL;
 }

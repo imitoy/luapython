@@ -1,11 +1,13 @@
-#include "luapython.hpp"
+#include "luapython.h"
+
+#define isPythonNumber(L, index) (isPythonObject(L, index) && PyNumber_Check(*(PyObject**)lua_touserdata(L, index)))
 
 int number_add(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_add: Attempt to add a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_add: Attempt to add on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -15,8 +17,8 @@ int number_add(lua_State* L) {
         lua_pushnumber(L, a + b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -53,11 +55,11 @@ int number_add(lua_State* L) {
 }
 
 int number_sub(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_sub: to subtract a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_sub: Attempt to subtract on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -67,8 +69,8 @@ int number_sub(lua_State* L) {
         lua_pushnumber(L, a - b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -105,11 +107,11 @@ int number_sub(lua_State* L) {
 }
 
 int number_mul(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_mul: Attempt to multiply a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_mul: Attempt to multiply on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -119,8 +121,8 @@ int number_mul(lua_State* L) {
         lua_pushnumber(L, a * b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -157,11 +159,11 @@ int number_mul(lua_State* L) {
 }
 
 int number_div(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_div: Attempt to divide a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_div: Attempt to divide on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -175,8 +177,8 @@ int number_div(lua_State* L) {
         lua_pushnumber(L, a / b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -213,11 +215,11 @@ int number_div(lua_State* L) {
 }
 
 int number_mod(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_mod: Attempt to modulo a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_mod: Attempt to modulo on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -231,8 +233,8 @@ int number_mod(lua_State* L) {
         lua_pushnumber(L, fmod(a, b));
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -269,11 +271,11 @@ int number_mod(lua_State* L) {
 }
 
 int number_pow(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_pow: Attempt to power a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_pow: Attempt to power on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -283,8 +285,8 @@ int number_pow(lua_State* L) {
         lua_pushnumber(L, pow(a, b));
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -321,7 +323,7 @@ int number_pow(lua_State* L) {
 }
 
 int number_unm(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_unm: Attempt to negate a %s value", luaL_typename(L, -1));
         return 0;
     }
@@ -330,7 +332,7 @@ int number_unm(lua_State* L) {
         lua_pushnumber(L, -a);
         return 1;
     }
-    PyObject* py_a = nullptr;
+    PyObject* py_a = NULL;
     bool release_a = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
@@ -356,11 +358,11 @@ int number_unm(lua_State* L) {
 }
 
 int number_idiv(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_idiv: Attempt to integer divide a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_idiv: Attempt to integer divide on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -371,11 +373,11 @@ int number_idiv(lua_State* L) {
             luaL_error(L, "number_idiv: Integer division by zero");
             return 0;
         }
-        lua_pushinteger(L, static_cast<lua_Integer>(a / b));
+        lua_pushinteger(L, (a / b));
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -412,11 +414,11 @@ int number_idiv(lua_State* L) {
 }
 
 int number_band(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_band: Attempt to bitwise AND a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_band: Attempt to bitwise AND on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -426,8 +428,8 @@ int number_band(lua_State* L) {
         lua_pushinteger(L, a & b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -464,11 +466,11 @@ int number_band(lua_State* L) {
 }
 
 int number_bor(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_bor: Attempt to bitwise OR a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_bor: Attempt to bitwise OR on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -478,8 +480,8 @@ int number_bor(lua_State* L) {
         lua_pushinteger(L, a | b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -514,11 +516,11 @@ int number_bor(lua_State* L) {
 }
 
 int number_bxor(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_bxor: Attempt to bitwise XOR a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_bxor: Attempt to bitwise XOR on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -528,8 +530,8 @@ int number_bxor(lua_State* L) {
         lua_pushinteger(L, a ^ b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -564,7 +566,7 @@ int number_bxor(lua_State* L) {
 }
 
 int number_bnot(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_bnot: Attempt to bitwise NOT a %s value", luaL_typename(L, -1));
         return 0;
     }
@@ -573,7 +575,7 @@ int number_bnot(lua_State* L) {
         lua_pushinteger(L, ~a);
         return 1;
     }
-    PyObject* py_a = nullptr;
+    PyObject* py_a = NULL;
     bool release_a = false;
     if (lua_isnumber(L, -1)) {
         py_a = PyFloat_FromDouble(lua_tonumber(L, -1));
@@ -598,11 +600,11 @@ int number_bnot(lua_State* L) {
 }
 
 int number_shl(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_shl: Attempt to left shift a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_shl: Attempt to left shift on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -612,8 +614,8 @@ int number_shl(lua_State* L) {
         lua_pushinteger(L, a << b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -648,11 +650,11 @@ int number_shl(lua_State* L) {
 }
 
 int number_shr(lua_State* L) {
-    if (!lua_isnumber(L, -1) && !lua_isuserdata(L, -1)) {
+    if (!lua_isnumber(L, -1) && !isPythonNumber(L, -1)) {
         luaL_error(L, "number_shr: Attempt to right shift a %s value", luaL_typename(L, -1));
         return 0;
     }
-    if (!lua_isnumber(L, -2) && !lua_isuserdata(L, -2)) {
+    if (!lua_isnumber(L, -2) && !isPythonNumber(L, -2)) {
         luaL_error(L, "number_shr: Attempt to right shift on a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -662,8 +664,8 @@ int number_shr(lua_State* L) {
         lua_pushinteger(L, a >> b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -709,7 +711,7 @@ int number_len(lua_State* L) {
         lua_pushinteger(L, len);
         return 1;
     }
-    PyObject* py_a = nullptr;
+    PyObject* py_a = NULL;
     bool release_a = false;
     if (lua_isstring(L, -1)) {
         py_a = PyUnicode_FromString(lua_tostring(L, -1));
@@ -741,8 +743,8 @@ int number_eq(lua_State* L) {
         lua_pushboolean(L, a == b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -779,8 +781,8 @@ int number_lt(lua_State* L) {
         lua_pushboolean(L, a < b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -817,8 +819,8 @@ int number_le(lua_State* L) {
         lua_pushboolean(L, a <= b);
         return 1;
     }
-    PyObject* py_a = nullptr;
-    PyObject* py_b = nullptr;
+    PyObject* py_a = NULL;
+    PyObject* py_b = NULL;
     bool release_a = false;
     bool release_b = false;
     if (lua_isnumber(L, -1)) {
@@ -868,28 +870,39 @@ int number_tostring(lua_State* L) {
     return 1;
 }
 
-int pushNumberLua(lua_State* L, PyObject* number) {
-    if (!PyNumber_Check(number)) {
+int table_number_index = 0;
+
+int pushNumberLua(lua_State* L, PyObject* obj) {
+    if (!PyNumber_Check(obj)) {
         luaL_error(L, "pushNumberLua: Failed to set metatable for number");
         return 0;
     }
-    if (PyLong_Check(number)) {
-        long number_long = PyLong_AsLong(number);
+    if (PyLong_Check(obj)) {
+        long number_long = PyLong_AsLong(obj);
         if (!PyErr_Occurred()) {
-            lua_pushinteger(L, PyLong_AsLong(number));
+            lua_pushinteger(L, PyLong_AsLong(obj));
             return 1;
         }
-    } else if (PyFloat_Check(number)) {
-        double number_double = PyFloat_AsDouble(number);
+    } else if (PyFloat_Check(obj)) {
+        double number_double = PyFloat_AsDouble(obj);
         if (!PyErr_Occurred()) {
             lua_pushnumber(L, number_double);
             return 1;
         }
     }
-    void* userdata = lua_newuserdata(L, sizeof(PyObject*));
-    *(PyObject**)userdata = number;
-    Py_INCREF(number);
-    lua_createtable(L, 0, 21);
+    if (table_number_index != 0) {
+        void* point = lua_newuserdata(L, sizeof(PyObject*));
+        *(PyObject**)point = obj;
+        Py_INCREF(obj);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, table_number_index);
+        if (!lua_istable(L, -1)) {
+            luaL_error(L, "pushNumberLua: Internal error, class index is not a table");
+            return 0;
+        }
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+    lua_createtable(L, 0, 22);
     lua_pushcfunction(L, number_add);
     lua_setfield(L, -2, "__add");
     lua_pushcfunction(L, number_sub);
@@ -932,8 +945,10 @@ int pushNumberLua(lua_State* L, PyObject* number) {
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
-    lua_setmetatable(L, -2);
-    return 1;
+    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_setfield(L, -2, "__name");
+    table_number_index = luaL_ref(L, LUA_REGISTRYINDEX);
+    return pushNumberLua(L, obj);
 }
 
 PyObject* convertNumberPython(lua_State* L, int index) {

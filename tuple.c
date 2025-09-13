@@ -1,20 +1,9 @@
-#include "luapython.hpp"
+#include "luapython.h"
 
-static bool is_pytuple(lua_State* L, int index) {
-    if (!lua_isuserdata(L, index))
-        return false;
-
-    if (lua_getmetatable(L, index)) {
-        luaL_getmetatable(L, "luapython.tuple");
-        bool is_same = lua_rawequal(L, -1, -2);
-        lua_pop(L, 2);
-        return is_same;
-    }
-    return false;
-}
+#define isPythonTuple(L, index) (isPythonObject(L, index) && PyTuple_Check(*(PyObject**)lua_touserdata(L, index)))
 
 int tuple_len(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pytuple(L, -1))) {
+    if (!(lua_istable(L, -1) || isPythonTuple(L, -1))) {
         luaL_error(L, "tuple_len: Attempt to get length of %s", luaL_typename(L, -1));
         return 0;
     }
@@ -31,13 +20,13 @@ int tuple_len(lua_State* L) {
 }
 
 int tuple_eq(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pytuple(L, -1)) || !(lua_istable(L, -2) || is_pytuple(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonTuple(L, -1)) || !(lua_istable(L, -2) || isPythonTuple(L, -2))) {
         luaL_error(L, "tuple_eq: Attempt to compare %s and %s as tuples", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
-    PyObject* py_tuple1 = nullptr;
-    PyObject* py_tuple2 = nullptr;
+    PyObject* py_tuple1 = NULL;
+    PyObject* py_tuple2 = NULL;
 
     if (lua_istable(L, -1)) {
         py_tuple1 = convertPython(L, -1);
@@ -71,7 +60,7 @@ int tuple_eq(lua_State* L) {
 }
 
 int tuple_index(lua_State* L) {
-    if (!(lua_istable(L, -2) || is_pytuple(L, -2))) {
+    if (!(lua_istable(L, -2) || isPythonTuple(L, -2))) {
         luaL_error(L, "tuple_index: Attempt to index %s", luaL_typename(L, -2));
         return 0;
     }
@@ -97,7 +86,7 @@ int tuple_index(lua_State* L) {
 }
 
 int tuple_tostring(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pytuple(L, -1))) {
+    if (!(lua_istable(L, -1) || isPythonTuple(L, -1))) {
         luaL_error(L, "tuple_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
         return 0;
     }
@@ -126,14 +115,25 @@ int tuple_tostring(lua_State* L) {
     return 1;
 }
 
-int pushTupleLua(lua_State* L, PyObject* tuple) {
-    if (!PyTuple_Check(tuple)) {
+int table_tuple_index = 0;
+
+int pushTupleLua(lua_State* L, PyObject* obj) {
+    if (!PyTuple_Check(obj)) {
         luaL_error(L, "pushTupleLua: Not a tuple");
         return 0;
     }
-    void* tuple_ptr = lua_newuserdata(L, sizeof(PyObject*));
-    *(PyObject**)tuple_ptr = tuple;
-    Py_INCREF(tuple);
+    if (table_tuple_index != 0) {
+        void* point = lua_newuserdata(L, sizeof(PyObject*));
+        *(PyObject**)point = obj;
+        Py_INCREF(obj);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, table_tuple_index);
+        if (!lua_istable(L, -1)) {
+            luaL_error(L, "pushClassLua: Internal error, class index is not a table");
+            return 0;
+        }
+        lua_setmetatable(L, -2);
+        return 1;
+    }
     lua_createtable(L, 0, 6);
     lua_pushcfunction(L, tuple_len);
     lua_setfield(L, -2, "__len");
@@ -145,8 +145,10 @@ int pushTupleLua(lua_State* L, PyObject* tuple) {
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
-    lua_setmetatable(L, -2);
-    return 1;
+    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_setfield(L, -2, "__name");
+    table_tuple_index = luaL_ref(L, LUA_REGISTRYINDEX);
+    return pushTupleLua(L, obj);
 }
 
 PyObject* convertTuplePython(lua_State* L, int index) {
@@ -155,11 +157,11 @@ PyObject* convertTuplePython(lua_State* L, int index) {
         PyObject* py_tuple = PyList_AsTuple(py_list);
         Py_DECREF(py_list);
         return py_tuple;
-    } else if (is_pytuple(L, index)) {
+    } else if (isPythonTuple(L, index)) {
         PyObject* py_tuple = *(PyObject**)lua_touserdata(L, index);
         Py_INCREF(py_tuple);
         return py_tuple;
     }
     luaL_error(L, "convertTuplePython: Attempt to convert a %s value to Python tuple", luaL_typename(L, index));
-    return nullptr;
+    return NULL;
 }

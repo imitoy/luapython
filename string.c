@@ -1,40 +1,12 @@
-#include "luapython.hpp"
-#include <string>
+#include "luapython.h"
 
-static bool is_pystring(lua_State* L, int index) {
-    if (!lua_isuserdata(L, index))
-        return false;
-
-    if (lua_getmetatable(L, index)) {
-        luaL_getmetatable(L, "luapython.string");
-        bool is_same = lua_rawequal(L, -1, -2);
-        lua_pop(L, 2);
-        return is_same;
-    }
-    return false;
-}
-
-static const char* get_string_value(lua_State* L, int index, size_t* len = nullptr) {
-    if (lua_isstring(L, index)) {
-        return lua_tolstring(L, index, len);
-    } else if (is_pystring(L, index)) {
-        PyObject* py_str = *(PyObject**)lua_touserdata(L, index);
-        if (PyUnicode_Check(py_str)) {
-            const char* result = PyUnicode_AsUTF8(py_str);
-            if (len)
-                *len = PyUnicode_GET_LENGTH(py_str);
-            return result;
-        }
-    }
-    return nullptr;
-}
+#define isPythonString(L, index) (isPythonObject(L, index) && PyUnicode_Check(*(PyObject**)lua_touserdata(L, index)))
 
 int string_concat(lua_State* L) {
-    if (!(lua_isstring(L, -1) || is_pystring(L, -1)) || !(lua_isstring(L, -2) || is_pystring(L, -2))) {
+    if (!(lua_isstring(L, -1) || isPythonString(L, -1)) || !(lua_isstring(L, -2) || isPythonString(L, -2))) {
         luaL_error(L, "string_concat: Attempt to concatenate %s and %s", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
-string_concat:
 
     if (lua_isstring(L, -1) && lua_isstring(L, -2)) {
         lua_pushvalue(L, -2);
@@ -43,8 +15,8 @@ string_concat:
         return 1;
     }
 
-    PyObject* py_str1 = nullptr;
-    PyObject* py_str2 = nullptr;
+    PyObject* py_str1 = NULL;
+    PyObject* py_str2 = NULL;
 
     if (lua_isstring(L, -1)) {
         py_str1 = PyUnicode_FromString(lua_tostring(L, -1));
@@ -83,7 +55,7 @@ string_concat:
 }
 
 int string_len(lua_State* L) {
-    if (!(lua_isstring(L, -1) || is_pystring(L, -1))) {
+    if (!(lua_isstring(L, -1) || isPythonString(L, -1))) {
         luaL_error(L, "string_len: Attempt to get length of %s", luaL_typename(L, -1));
         return 0;
     }
@@ -102,7 +74,7 @@ int string_len(lua_State* L) {
 }
 
 int string_eq(lua_State* L) {
-    if (!(lua_isstring(L, -1) || is_pystring(L, -1)) || !(lua_isstring(L, -2) || is_pystring(L, -2))) {
+    if (!(lua_isstring(L, -1) || isPythonString(L, -1)) || !(lua_isstring(L, -2) || isPythonString(L, -2))) {
         luaL_error(L, "string_len: Attempt to compare %s and %s as strings", luaL_typename(L, -2),
                    luaL_typename(L, -1));
         return 0;
@@ -115,8 +87,8 @@ int string_eq(lua_State* L) {
         return 1;
     }
 
-    PyObject* py_str1 = nullptr;
-    PyObject* py_str2 = nullptr;
+    PyObject* py_str1 = NULL;
+    PyObject* py_str2 = NULL;
 
     if (lua_isstring(L, -1)) {
         py_str1 = PyUnicode_FromString(lua_tostring(L, -1));
@@ -150,7 +122,7 @@ int string_eq(lua_State* L) {
 }
 
 int string_lt(lua_State* L) {
-    if (!(lua_isstring(L, -1) || is_pystring(L, -1)) || !(lua_isstring(L, -2) || is_pystring(L, -2))) {
+    if (!(lua_isstring(L, -1) || isPythonString(L, -1)) || !(lua_isstring(L, -2) || isPythonString(L, -2))) {
         luaL_error(L, "string_lt: Attempt to compare %s and %s as strings", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
@@ -162,8 +134,8 @@ int string_lt(lua_State* L) {
         return 1;
     }
 
-    PyObject* py_str1 = nullptr;
-    PyObject* py_str2 = nullptr;
+    PyObject* py_str1 = NULL;
+    PyObject* py_str2 = NULL;
 
     if (lua_isstring(L, -1)) {
         py_str1 = PyUnicode_FromString(lua_tostring(L, -1));
@@ -197,7 +169,7 @@ int string_lt(lua_State* L) {
 }
 
 int string_le(lua_State* L) {
-    if (!(lua_isstring(L, -1) || is_pystring(L, -1)) || !(lua_isstring(L, -2) || is_pystring(L, -2))) {
+    if (!(lua_isstring(L, -1) || isPythonString(L, -1)) || !(lua_isstring(L, -2) || isPythonString(L, -2))) {
         luaL_error(L, "string_le: Attempt to compare %s and %s as strings", luaL_typename(L, -1), luaL_typename(L, -2));
         return 0;
     }
@@ -209,8 +181,8 @@ int string_le(lua_State* L) {
         return 1;
     }
 
-    PyObject* py_str1 = nullptr;
-    PyObject* py_str2 = nullptr;
+    PyObject* py_str1 = NULL;
+    PyObject* py_str2 = NULL;
 
     if (lua_isstring(L, -1)) {
         py_str1 = PyUnicode_FromString(lua_tostring(L, -1));
@@ -244,7 +216,7 @@ int string_le(lua_State* L) {
 }
 
 int string_tostring(lua_State* L) {
-    if (!(lua_isstring(L, -1) || is_pystring(L, -1))) {
+    if (!(lua_isstring(L, -1) || isPythonString(L, -1))) {
         luaL_error(L, "string_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
         return 0;
     }
@@ -266,7 +238,7 @@ int string_tostring(lua_State* L) {
 }
 
 int string_mul(lua_State* L) {
-    if (!(lua_isstring(L, -2) || is_pystring(L, -2))) {
+    if (!(lua_isstring(L, -2) || isPythonString(L, -2))) {
         luaL_error(L, "string_mul: Attempt to multiply a %s value", luaL_typename(L, -2));
         return 0;
     }
@@ -284,11 +256,11 @@ int string_mul(lua_State* L) {
 
     if (lua_isstring(L, -2)) {
         const char* str = lua_tostring(L, -2);
-        std::string result;
-        for (int i = 0; i < count; i++) {
-            result += str;
+        char result[strlen(str) * count + 1];
+        for(int i = 0; i < count; i++) {
+            strcat(result, str);
         }
-        lua_pushstring(L, result.c_str());
+        lua_pushstring(L, result);
         return 1;
     }
 
@@ -312,20 +284,31 @@ int string_mul(lua_State* L) {
     return 1;
 }
 
-int pushStringLua(lua_State* L, PyObject* string) {
-    if (!PyUnicode_Check(string)) {
+int table_string_index = 0;
+
+int pushStringLua(lua_State* L, PyObject* obj) {
+    if (!PyUnicode_Check(obj)) {
         luaL_error(L, "pushStringLua: Expected a Python string object");
         return 1;
     }
-    const char* str = PyUnicode_AsUTF8(string);
+    const char* str = PyUnicode_AsUTF8(obj);
     if (!PyErr_Occurred()) {
         lua_pushstring(L, str);
         return 1;
     }
-    void* userdata = lua_newuserdata(L, sizeof(PyObject*));
-    *(PyObject**)userdata = string;
-    Py_INCREF(string);
-    lua_createtable(L, 0, 8);
+    if (table_string_index != 0) {
+        void* point = lua_newuserdata(L, sizeof(PyObject*));
+        *(PyObject**)point = obj;
+        Py_INCREF(obj);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, table_string_index);
+        if (!lua_istable(L, -1)) {
+            luaL_error(L, "pushStringLua: Internal error, class index is not a table");
+            return 0;
+        }
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+    lua_createtable(L, 0, 9);
     lua_pushcfunction(L, string_concat);
     lua_setfield(L, -2, "__concat");
     lua_pushcfunction(L, string_len);
@@ -342,18 +325,20 @@ int pushStringLua(lua_State* L, PyObject* string) {
     lua_setfield(L, -2, "__mul");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
-    lua_setmetatable(L, -2);
-    return 1;
+    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_setfield(L, -2, "__name");
+    table_string_index = luaL_ref(L, LUA_REGISTRYINDEX);
+    return pushStringLua(L, obj);
 }
 
 PyObject* convertStringPython(lua_State* L, int index) {
     if (lua_isstring(L, index)) {
         return PyUnicode_FromString(lua_tostring(L, index));
-    } else if (is_pystring(L, index)) {
+    } else if (isPythonString(L, index)) {
         PyObject* py_str = *(PyObject**)lua_touserdata(L, index);
         Py_INCREF(py_str);
         return py_str;
     }
     luaL_error(L, "convertStringPython: Expected a string or Python string object at index %d", index);
-    return nullptr;
+    return NULL;
 }

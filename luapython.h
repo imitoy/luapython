@@ -1,9 +1,20 @@
 #include <Python.h>
-#include <lua.hpp>
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+#include <stdbool.h>
 
-extern "C" int luaopen_luapython(lua_State* L);
+#ifndef PREFIX
+#define PREFIX "/usr"
+#endif
+
+#define PYTHON_OBJECT_NAME "python_object"
+
+int luaopen_luapython(lua_State* L);
 
 int python_gc(lua_State* L);
+
+bool isPythonObject(lua_State* L, int index);
 
 int pushNumberLua(lua_State* L, PyObject* number);
 int pushBooleanLua(lua_State* L, PyObject* boolean);

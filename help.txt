@@ -1,0 +1,9 @@
+Usage: lua configure.lua
+
+Options:
+
+    --help, -h                              Show this help message.
+    --lua-version=<lua-version>             Lua version(5.1, 5.2, 5.3, 5.4, luajit)
+                                                Default: _VERSION
+    --python-version=<python-version>       Python version
+    --compiler=<compiler>

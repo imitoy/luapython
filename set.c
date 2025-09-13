@@ -1,22 +1,9 @@
-#include "luapython.hpp"
+#include "luapython.h"
 
-// 检查是否为Python集合对象
-static bool is_pyset(lua_State* L, int index) {
-    if (!lua_isuserdata(L, index))
-        return false;
-
-    // 获取元表
-    if (lua_getmetatable(L, index)) {
-        luaL_getmetatable(L, "luapython.set");
-        bool is_same = lua_rawequal(L, -1, -2);
-        lua_pop(L, 2); // 弹出两个元表
-        return is_same;
-    }
-    return false;
-}
+#define isPythonSet(L, index) (isPythonObject(L, index) && PySet_Check(*(PyObject**)lua_touserdata(L, index)))
 
 int set_len(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1))) {
+    if (!(lua_istable(L, -1) || isPythonSet(L, -1))) {
         luaL_error(L, "set_len: Attempt to get length of %s", luaL_typename(L, -1));
         return 0;
     }
@@ -33,13 +20,13 @@ int set_len(lua_State* L) {
 }
 
 int set_eq(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonSet(L, -1)) || !(lua_istable(L, -2) || isPythonSet(L, -2))) {
         luaL_error(L, "set_eq: Attempt to compare %s and %s as sets", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
-    PyObject* py_set1 = nullptr;
-    PyObject* py_set2 = nullptr;
+    PyObject* py_set1 = NULL;
+    PyObject* py_set2 = NULL;
 
     if (lua_istable(L, -2)) {
         py_set1 = convertPython(L, -2);
@@ -73,7 +60,7 @@ int set_eq(lua_State* L) {
 }
 
 int set_index(lua_State* L) {
-    if (!(lua_istable(L, -2) || is_pyset(L, -2))) {
+    if (!(lua_istable(L, -2) || isPythonSet(L, -2))) {
         luaL_error(L, "set_index: Attempt to index %s", luaL_typename(L, -2));
         return 0;
     }
@@ -89,7 +76,7 @@ int set_index(lua_State* L) {
 }
 
 int set_newindex(lua_State* L) {
-    if (!(lua_istable(L, -3) || is_pyset(L, -3))) {
+    if (!(lua_istable(L, -3) || isPythonSet(L, -3))) {
         luaL_error(L, "set_newindex: Attempt to assign to %s", luaL_typename(L, -3));
         return 0;
     }
@@ -108,7 +95,7 @@ int set_newindex(lua_State* L) {
 }
 
 int set_tostring(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1))) {
+    if (!(lua_istable(L, -1) || isPythonSet(L, -1))) {
         luaL_error(L, "set_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
         return 0;
     }
@@ -139,13 +126,13 @@ int set_tostring(lua_State* L) {
 }
 
 int set_add(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonSet(L, -1)) || !(lua_istable(L, -2) || isPythonSet(L, -2))) {
         luaL_error(L, "set_add: Attempt to perform union on %s and %s", luaL_typename(L, -2), luaL_typename(L, -1));
         return 0;
     }
 
-    PyObject* py_set1 = nullptr;
-    PyObject* py_set2 = nullptr;
+    PyObject* py_set1 = NULL;
+    PyObject* py_set2 = NULL;
 
     if (lua_istable(L, -1)) {
         py_set1 = convertPython(L, -1);
@@ -184,14 +171,14 @@ int set_add(lua_State* L) {
 }
 
 int set_mul(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonSet(L, -1)) || !(lua_istable(L, -2) || isPythonSet(L, -2))) {
         luaL_error(L, "set_mul: Attempt to perform intersection on %s and %s", luaL_typename(L, -2),
                    luaL_typename(L, -1));
         return 0;
     }
 
-    PyObject* py_set1 = nullptr;
-    PyObject* py_set2 = nullptr;
+    PyObject* py_set1 = NULL;
+    PyObject* py_set2 = NULL;
 
     if (lua_istable(L, -1)) {
         py_set1 = convertPython(L, -1);
@@ -230,14 +217,14 @@ int set_mul(lua_State* L) {
 }
 
 int set_sub(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonSet(L, -1)) || !(lua_istable(L, -2) || isPythonSet(L, -2))) {
         luaL_error(L, "set_sub: Attempt to perform difference on %s and %s", luaL_typename(L, -2),
                    luaL_typename(L, -1));
         return 0;
     }
 
-    PyObject* py_set1 = nullptr;
-    PyObject* py_set2 = nullptr;
+    PyObject* py_set1 = NULL;
+    PyObject* py_set2 = NULL;
 
     if (lua_istable(L, -1)) {
         py_set1 = convertPython(L, -1);
@@ -276,14 +263,14 @@ int set_sub(lua_State* L) {
 }
 
 int set_bxor(lua_State* L) {
-    if (!(lua_istable(L, -1) || is_pyset(L, -1)) || !(lua_istable(L, -2) || is_pyset(L, -2))) {
+    if (!(lua_istable(L, -1) || isPythonSet(L, -1)) || !(lua_istable(L, -2) || isPythonSet(L, -2))) {
         luaL_error(L, "set_bxor: Attempt to perform symmetric difference on %s and %s", luaL_typename(L, -2),
                    luaL_typename(L, -1));
         return 0;
     }
 
-    PyObject* py_set1 = nullptr;
-    PyObject* py_set2 = nullptr;
+    PyObject* py_set1 = NULL;
+    PyObject* py_set2 = NULL;
 
     if (lua_istable(L, -1)) {
         py_set1 = convertPython(L, -1);
@@ -321,15 +308,26 @@ int set_bxor(lua_State* L) {
     return 1;
 }
 
-int pushSetLua(lua_State* L, PyObject* set) {
-    if (!PySet_Check(set)) {
+int table_set_index = 0;
+
+int pushSetLua(lua_State* L, PyObject* obj) {
+    if (!PySet_Check(obj)) {
         luaL_error(L, "pushSetLua: Failed to set metatable for set");
         return 0;
     }
-    void* userdata = lua_newuserdata(L, sizeof(PyObject*));
-    *(PyObject**)userdata = set;
-    Py_INCREF(set);
-    lua_createtable(L, 0, 9);
+    if (table_set_index != 0) {
+        void* point = lua_newuserdata(L, sizeof(PyObject*));
+        *(PyObject**)point = obj;
+        Py_INCREF(obj);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, table_set_index);
+        if (!lua_istable(L, -1)) {
+            luaL_error(L, "pushSetLua: Internal error, class index is not a table");
+            return 0;
+        }
+        lua_setmetatable(L, -2);
+        return 1;
+    }
+    lua_createtable(L, 0, 10);
     lua_pushcfunction(L, set_add);
     lua_setfield(L, -2, "__add");
     lua_pushcfunction(L, set_mul);
@@ -348,19 +346,21 @@ int pushSetLua(lua_State* L, PyObject* set) {
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
-    lua_setmetatable(L, -2);
-    return 1;
+    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_setfield(L, -2, "__name");
+    table_set_index = luaL_ref(L, LUA_REGISTRYINDEX);
+    return pushSetLua(L, obj);
 }
 
 PyObject* convertSetPython(lua_State* L, int index) {
     if (lua_istable(L, index)) {
         PyObject* py_set = PySet_New(convertListPython(L, index));
         return py_set;
-    } else if (is_pyset(L, index)) {
+    } else if (isPythonSet(L, index)) {
         PyObject* py_set = *(PyObject**)lua_touserdata(L, index);
         Py_INCREF(py_set);
         return py_set;
     }
     luaL_error(L, "convertSetPython: Attempt to convert a %s value to Python set", luaL_typename(L, index));
-    return nullptr;
+    return NULL;
 }
