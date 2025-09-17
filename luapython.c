@@ -195,8 +195,6 @@ int luaopen_luapython(lua_State* L) {
     strcat((char*)path2, name2);
     luaL_loadfile(L, path2);
     lua_setfield(L, -2, "init");
-    //print python version
-    printf("Python version: %s\n", Py_GetVersion());
     return 1;
 }
 
