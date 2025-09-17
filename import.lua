@@ -26,6 +26,7 @@ return function(module_name)
             module = module[string.sub(w, 1, -2)]
         end
     else
+        func(module_name, true)
         error("import.lua: module '" .. module_name .. "' not found")
     end
 
