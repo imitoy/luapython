@@ -12,6 +12,7 @@ Library of using Python in Lua.
 ```bash
 git clone https://github.com/imitoy/luapython.git
 cd luapython
+lua configure.lua --compiler=gcc # add --help to get more information
 make # Requires Lua and Python headers
 sudo make install
 # when uninstall, just replace with `uninstall`

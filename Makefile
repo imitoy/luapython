@@ -2,8 +2,8 @@ PREFIX = /usr
 CXX = gcc
 LUA_VERSION = 5.4
 LUA_VERSION_A = 5.4
-LDFLAGS =  /usr/lib/liblua.so.5.4 /home/imitoy/.conda/envs/luapython/lib/libpython3.so
-LD_LIBRARY_PATH=/home/imitoy/.conda/envs/luapython/lib
+LDFLAGS =  /usr/lib/liblua.so.5.4 /usr/lib/libpython3.so
+LD_LIBRARY_PATH=/usr/lib
 
 PREFIX ?= /usr
 
@@ -11,7 +11,7 @@ LUA_VERSION ?= 5.4
 
 CXX ?= gcc
 CXXFLAGS = -shared -fPIC -g -I$(PREFIX)/include/lua$(LUA_VERSION) $(shell python3-config --includes) -DPREFIX="\"$(PREFIX)\"" -DPYTHON_LIB="\"libpython3.so\""
-LDFLAGS += -lm -ldl # $(shell python3-config --ldflags) -lpython3
+LDFLAGS += -lm -ldl
 
 SOURCES = luapython.c number.c string.c set.c dict.c list.c tuple.c module.c function.c class.c
 OBJECTS = $(SOURCES:.c=.o)
