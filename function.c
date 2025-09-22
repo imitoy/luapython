@@ -18,7 +18,6 @@ int function_call(lua_State* L) {
         luaL_error(L, "function_call: Attempt to call a %s object", Py_TYPE(function)->tp_name);
         return 0;
     }
-
     if (nargs == 1 && lua_istable(L, -2)) {
         lua_pushvalue(L, -2);
         lua_pushnil(L);
@@ -28,12 +27,20 @@ int function_call(lua_State* L) {
         PyObject* signature_of_function = PyObject_CallFunctionObjArgs(signature, function, NULL);
         if (PyErr_Occurred()) {
             PyErr_Clear();
+            Py_XDECREF(signature_of_function);
+            Py_XDECREF(signature);
+            Py_XDECREF(inspect);
             goto normal;
         }
         PyObject* parameters = PyObject_GetAttrString(signature_of_function, "parameters");
         PyObject* keys = PyObject_CallMethod(parameters, "keys", NULL);
         if (PyErr_Occurred()) {
             PyErr_Print();
+            Py_XDECREF(parameters);
+            Py_XDECREF(keys);
+            Py_XDECREF(signature_of_function);
+            Py_XDECREF(signature);
+            Py_XDECREF(inspect);
             luaL_error(L, "function_call: Failed to import inspect module");
             return 0;
         }
@@ -92,6 +99,7 @@ int function_call(lua_State* L) {
                     return 0;
                 }
                 PyTuple_SetItem(args, i, arg);
+                Py_XDECREF(arg);
             }
             lua_pop(L, 1);
             PyObject* result = PyObject_Call(function, args, kwargs);
@@ -102,8 +110,9 @@ int function_call(lua_State* L) {
                 Py_DECREF(kwargs);
                 return 0;
             }
-            pushLua(L, result); // here need to decref result possibly
+            pushLua(L, result);
             Py_DECREF(args);
+            Py_XDECREF(result);
             return 1;
         }
     }
@@ -121,10 +130,12 @@ normal:
             return 0;
         }
         PyTuple_SetItem(args, i, arg);
+        Py_XDECREF(arg);
     }
     PyObject* result = PyObject_CallObject(function, args);
-    pushLua(L, result); // here need to decref result possibly
+    pushLua(L, result);
     Py_DECREF(args);
+    Py_XDECREF(result);
     return 1;
 }
 
@@ -135,8 +146,9 @@ int function_tostring(lua_State* L) {
     }
     PyObject* function = convertPython(L, -1);
     PyObject* str = PyObject_Str(function);
-    lua_pushstring(L, PyUnicode_AsUTF8(str));
-    Py_DECREF(str);
+    pushLua(L, str);
+    Py_XDECREF(function);
+    Py_XDECREF(str);
     return 1;
 }
 

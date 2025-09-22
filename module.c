@@ -13,12 +13,21 @@ int module_index(lua_State* L) {
         return 0;
     }
     pushLua(L, value);
+    Py_XDECREF(module);
+    Py_XDECREF(value);
     return 1;
 }
 
 int module_tostring(lua_State* L) {
     PyObject* module = *(PyObject**)lua_touserdata(L, -1);
-    lua_pushstring(L, Py_TYPE(module)->tp_name);
+    if (!module) {
+        luaL_error(L, "module_tostring: Invalid Python module");
+        return 0;
+    }
+    PyObject* str = PyObject_Str(module);
+    pushLua(L, str);
+    Py_XDECREF(module);
+    Py_XDECREF(str);
     return 1;
 }
 

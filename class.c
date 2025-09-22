@@ -6,14 +6,14 @@ int class_index(lua_State* L) {
         return 0;
     }
     const char* key = lua_tostring(L, -1);
-    if(!isPythonObject(L, -2)) {
+    if (!isPythonObject(L, -2)) {
         luaL_error(L, "class_index: Not a Python object");
         return 0;
     }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -2);
     if (!PyObject_HasAttrString(obj, lua_tostring(L, -1))) {
-        luaL_error(L, "class_index: No such attribute %s", key);
-        return 0;
+        lua_pushnil(L);
+        return 1;
     }
     PyObject* attr = PyObject_GetAttrString(obj, key);
     pushLua(L, attr);

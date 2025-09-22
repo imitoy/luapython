@@ -22,6 +22,7 @@ static int python_import(lua_State* L) {
         return 0;
     }
     pushLua(L, module);
+    Py_XDECREF(module);
     return 1;
 }
 
@@ -31,6 +32,7 @@ static int python_set(lua_State* L) {
     }
     PyObject* set = convertSetPython(L, -1);
     pushSetLua(L, set);
+    Py_XDECREF(set);
     return 1;
 }
 
@@ -40,6 +42,7 @@ static int python_dict(lua_State* L) {
     }
     PyObject* dict = convertDictPython(L, -1);
     pushDictLua(L, dict);
+    Py_XDECREF(dict);
     return 1;
 }
 
@@ -49,6 +52,7 @@ static int python_tuple(lua_State* L) {
     }
     PyObject* tuple = convertTuplePython(L, -1);
     pushTupleLua(L, tuple);
+    Py_XDECREF(tuple);
     return 1;
 }
 
@@ -58,25 +62,16 @@ static int python_list(lua_State* L) {
     }
     PyObject* list = convertListPython(L, -1);
     pushListLua(L, list);
-    return 1;
-}
-
-static int table_index(lua_State* L) {
-    if (!lua_isstring(L, -1)) {
-        luaL_error(L, "valid index");
-        return 0;
-    }
-    const char* key = lua_tostring(L, -1);
-    PyObject* module = *(PyObject**)lua_touserdata(L, -2);
-    PyObject* value = PyObject_GetAttrString(module, key);
-    const char* s = Py_TYPE(module)->tp_name;
-    const char* t = Py_TYPE(value)->tp_name;
+    Py_XDECREF(list);
     return 1;
 }
 
 int python_gc(lua_State* L) {
+    if (!isPythonObject(L, -1)) {
+        luaL_error(L, "python_gc: Not a Python object");
+        return 0;
+    }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -1);
-    // std::cout << "Python object deleted" << std::endl;
     Py_DECREF(obj);
     return 0;
 }
@@ -112,7 +107,6 @@ int pushLua(lua_State* L, PyObject* obj) {
     } else if (PyCallable_Check(obj)) {
         return pushFunctionLua(L, obj);
     } else {
-        const char* type_name = Py_TYPE(obj)->tp_name;
         return pushClassLua(L, obj);
     }
 }

@@ -19,23 +19,19 @@ int number_add(lua_State* L) {
     }
     PyObject* py_a = NULL;
     PyObject* py_b = NULL;
-    bool release_a = false;
-    bool release_b = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
         py_a = PyFloat_FromDouble(a);
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_INCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         double b = lua_tonumber(L, -2);
         py_b = PyFloat_FromDouble(b);
-        release_b = true;
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        release_b = false;
+        Py_INCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_add: Failed to convert Lua numbers to Python numbers");
@@ -47,10 +43,9 @@ int number_add(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
-    if (release_b)
         Py_DECREF(py_b);
+        Py_XDECREF(result);
     return 1;
 }
 
@@ -71,23 +66,19 @@ int number_sub(lua_State* L) {
     }
     PyObject* py_a = NULL;
     PyObject* py_b = NULL;
-    bool release_a = false;
-    bool release_b = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
         py_a = PyFloat_FromDouble(a);
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_XINCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         double b = lua_tonumber(L, -2);
         py_b = PyFloat_FromDouble(b);
-        release_b = true;
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        release_b = false;
+        Py_XINCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_sub: Failed to convert Lua numbers to Python numbers");
@@ -99,10 +90,9 @@ int number_sub(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
-    if (release_b)
         Py_DECREF(py_b);
+        Py_XDECREF(result);
     return 1;
 }
 
@@ -123,23 +113,19 @@ int number_mul(lua_State* L) {
     }
     PyObject* py_a = NULL;
     PyObject* py_b = NULL;
-    bool release_a = false;
-    bool release_b = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
         py_a = PyFloat_FromDouble(a);
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_XINCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         double b = lua_tonumber(L, -2);
         py_b = PyFloat_FromDouble(b);
-        release_b = true;
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        release_b = false;
+        Py_XINCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_mul: Failed to convert Lua numbers to Python numbers");
@@ -151,10 +137,9 @@ int number_mul(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
-    if (release_b)
         Py_DECREF(py_b);
+        Py_XDECREF(result);
     return 1;
 }
 
@@ -179,23 +164,19 @@ int number_div(lua_State* L) {
     }
     PyObject* py_a = NULL;
     PyObject* py_b = NULL;
-    bool release_a = false;
-    bool release_b = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
         py_a = PyFloat_FromDouble(a);
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_XINCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         double b = lua_tonumber(L, -2);
         py_b = PyFloat_FromDouble(b);
-        release_b = true;
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        release_b = false;
+        Py_XINCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_div: Failed to convert Lua numbers to Python numbers");
@@ -207,10 +188,9 @@ int number_div(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
-    if (release_b)
         Py_DECREF(py_b);
+        Py_XDECREF(result);
     return 1;
 }
 
@@ -235,23 +215,19 @@ int number_mod(lua_State* L) {
     }
     PyObject* py_a = NULL;
     PyObject* py_b = NULL;
-    bool release_a = false;
-    bool release_b = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
         py_a = PyFloat_FromDouble(a);
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_XINCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         double b = lua_tonumber(L, -2);
         py_b = PyFloat_FromDouble(b);
-        release_b = true;
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        release_b = false;
+        Py_XINCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_mod: Failed to convert Lua numbers to Python numbers");
@@ -263,10 +239,9 @@ int number_mod(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
-    if (release_b)
         Py_DECREF(py_b);
+        Py_XDECREF(result);
     return 1;
 }
 
@@ -287,23 +262,19 @@ int number_pow(lua_State* L) {
     }
     PyObject* py_a = NULL;
     PyObject* py_b = NULL;
-    bool release_a = false;
-    bool release_b = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
         py_a = PyFloat_FromDouble(a);
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_XINCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         double b = lua_tonumber(L, -2);
         py_b = PyFloat_FromDouble(b);
-        release_b = true;
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        release_b = false;
+        Py_XINCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_pow: Failed to convert Lua numbers to Python numbers");
@@ -315,10 +286,9 @@ int number_pow(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
-    if (release_b)
         Py_DECREF(py_b);
+        Py_XDECREF(result);
     return 1;
 }
 
@@ -333,14 +303,12 @@ int number_unm(lua_State* L) {
         return 1;
     }
     PyObject* py_a = NULL;
-    bool release_a = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
         py_a = PyFloat_FromDouble(a);
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_XINCREF(py_a);
     }
     if (!py_a) {
         luaL_error(L, "number_unm: Failed to convert Lua number to Python number");
@@ -352,8 +320,8 @@ int number_unm(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
+        Py_XDECREF(result);
     return 1;
 }
 
@@ -378,23 +346,19 @@ int number_idiv(lua_State* L) {
     }
     PyObject* py_a = NULL;
     PyObject* py_b = NULL;
-    bool release_a = false;
-    bool release_b = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
         py_a = PyFloat_FromDouble(a);
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_XINCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         double b = lua_tonumber(L, -2);
         py_b = PyFloat_FromDouble(b);
-        release_b = true;
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        release_b = false;
+        Py_XINCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_idiv: Failed to convert Lua numbers to Python numbers");
@@ -406,10 +370,9 @@ int number_idiv(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
-    if (release_b)
         Py_DECREF(py_b);
+        Py_XDECREF(result);
     return 1;
 }
 
@@ -430,23 +393,19 @@ int number_band(lua_State* L) {
     }
     PyObject* py_a = NULL;
     PyObject* py_b = NULL;
-    bool release_a = false;
-    bool release_b = false;
     if (lua_isnumber(L, -1)) {
         double a = lua_tonumber(L, -1);
         py_a = PyFloat_FromDouble(a);
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_XINCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         double b = lua_tonumber(L, -2);
         py_b = PyFloat_FromDouble(b);
-        release_b = true;
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        release_b = false;
+        Py_XINCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_band: Failed to convert Lua numbers to Python numbers");
@@ -458,10 +417,9 @@ int number_band(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
-    if (release_b)
         Py_DECREF(py_b);
+        Py_XDECREF(result);
     return 1;
 }
 
@@ -482,21 +440,17 @@ int number_bor(lua_State* L) {
     }
     PyObject* py_a = NULL;
     PyObject* py_b = NULL;
-    bool release_a = false;
-    bool release_b = false;
     if (lua_isnumber(L, -1)) {
         py_a = PyFloat_FromDouble(lua_tonumber(L, -1));
-        release_a = true;
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        release_a = false;
+        Py_XINCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         py_b = PyFloat_FromDouble(lua_tonumber(L, -2));
-        release_b = true;
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        release_b = false;
+        Py_XINCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_bor: Failed to convert Lua numbers to Python numbers");
@@ -508,10 +462,9 @@ int number_bor(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-    if (release_a)
         Py_DECREF(py_a);
-    if (release_b)
         Py_DECREF(py_b);
+        Py_XDECREF(result);
     return 1;
 }
 
