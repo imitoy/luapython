@@ -99,7 +99,6 @@ int function_call(lua_State* L) {
                     return 0;
                 }
                 PyTuple_SetItem(args, i, arg);
-                Py_XDECREF(arg);
             }
             lua_pop(L, 1);
             PyObject* result = PyObject_Call(function, args, kwargs);
@@ -130,7 +129,6 @@ normal:
             return 0;
         }
         PyTuple_SetItem(args, i, arg);
-        Py_XDECREF(arg);
     }
     PyObject* result = PyObject_CallObject(function, args);
     pushLua(L, result);

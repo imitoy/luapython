@@ -68,7 +68,6 @@ int list_newindex(lua_State* L) {
     }
     PyObject* old_value = PyList_GetItem(py_list, py_idx);
     int result = PyList_SetItem(py_list, py_idx, py_value);
-    Py_XDECREF(py_value);
     if (result < 0) {
         Py_XDECREF(py_value);
         luaL_error(L, "list_newindex: Failed to set list item");
@@ -113,13 +112,11 @@ int list_add(lua_State* L) {
     }
     for (Py_ssize_t i = 0; i < PyList_Size(py_list1); ++i) {
         PyObject* item = PyList_GetItem(py_list1, i);
-        Py_XINCREF(item);
         PyList_SetItem(result, i, item);
     }
     Py_ssize_t offset = PyList_Size(py_list1);
     for (Py_ssize_t i = 0; i < PyList_Size(py_list2); ++i) {
         PyObject* item = PyList_GetItem(py_list2, i);
-        Py_XINCREF(item);
         PyList_SetItem(result, offset + i, item);
     }
     Py_XDECREF(py_list1);
