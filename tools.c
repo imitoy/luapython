@@ -6,15 +6,6 @@ int luapython_astable(lua_State* L) {
         return 0;
     }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -1);
-    if(PyDict_Check(obj)){
-        return pushDictLua(L, obj);
-    }else if(PyList_Check(obj)){
-        return pushListLua(L, obj);
-    }else if(PyTuple_Check(obj)){
-        return pushTupleLua(L, obj);
-    }else if(PySet_Check(obj)){
-        return pushSetLua(L, obj);
-    }
     PyObject* dir = PyObject_Dir(obj);
     if(PyErr_Occurred()) {
         PyErr_Print();
