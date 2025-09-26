@@ -19,25 +19,25 @@ int string_concat(lua_State* L) {
         py_str1 = PyUnicode_FromString(lua_tostring(L, -1));
     } else {
         py_str1 = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_str1);
+        Py_XINCREF(py_str1);
     }
     if (lua_isstring(L, -2)) {
         py_str2 = PyUnicode_FromString(lua_tostring(L, -2));
     } else {
         py_str2 = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_str2);
+        Py_XINCREF(py_str2);
     }
     if (!py_str1 || !py_str2) {
         if (py_str1)
-            Py_DECREF(py_str1);
+            Py_XDECREF(py_str1);
         if (py_str2)
-            Py_DECREF(py_str2);
+            Py_XDECREF(py_str2);
         luaL_error(L, "string_concat: Failed to create Python strings");
         return 0;
     }
     PyObject* result = PyUnicode_Concat(py_str1, py_str2);
-    Py_DECREF(py_str1);
-    Py_DECREF(py_str2);
+    Py_XDECREF(py_str1);
+    Py_XDECREF(py_str2);
     if (!result) {
         luaL_error(L, "string_concat: Python string concatenation failed");
         return 0;
@@ -82,25 +82,25 @@ int string_eq(lua_State* L) {
         py_str1 = PyUnicode_FromString(lua_tostring(L, -1));
     } else {
         py_str1 = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_str1);
+        Py_XINCREF(py_str1);
     }
     if (lua_isstring(L, -2)) {
         py_str2 = PyUnicode_FromString(lua_tostring(L, -2));
     } else {
         py_str2 = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_str2);
+        Py_XINCREF(py_str2);
     }
     if (!py_str1 || !py_str2) {
         if (py_str1)
-            Py_DECREF(py_str1);
+            Py_XDECREF(py_str1);
         if (py_str2)
-            Py_DECREF(py_str2);
+            Py_XDECREF(py_str2);
         luaL_error(L, "string_len: Failed to create Python strings");
         return 0;
     }
     int result = PyObject_RichCompareBool(py_str1, py_str2, Py_EQ);
-    Py_DECREF(py_str1);
-    Py_DECREF(py_str2);
+    Py_XDECREF(py_str1);
+    Py_XDECREF(py_str2);
     lua_pushboolean(L, result);
     Py_XDECREF(result);
     return 1;
@@ -123,25 +123,25 @@ int string_lt(lua_State* L) {
         py_str1 = PyUnicode_FromString(lua_tostring(L, -1));
     } else {
         py_str1 = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_str1);
+        Py_XINCREF(py_str1);
     }
     if (lua_isstring(L, -2)) {
         py_str2 = PyUnicode_FromString(lua_tostring(L, -2));
     } else {
         py_str2 = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_str2);
+        Py_XINCREF(py_str2);
     }
     if (!py_str1 || !py_str2) {
         if (py_str1)
-            Py_DECREF(py_str1);
+            Py_XDECREF(py_str1);
         if (py_str2)
-            Py_DECREF(py_str2);
+            Py_XDECREF(py_str2);
         luaL_error(L, "string_lt: Failed to create Python strings");
         return 0;
     }
     int result = PyObject_RichCompareBool(py_str2, py_str1, Py_LT);
-    Py_DECREF(py_str1);
-    Py_DECREF(py_str2);
+    Py_XDECREF(py_str1);
+    Py_XDECREF(py_str2);
     lua_pushboolean(L, result);
     return 1;
 }
@@ -163,26 +163,26 @@ int string_le(lua_State* L) {
         py_str1 = PyUnicode_FromString(lua_tostring(L, -1));
     } else {
         py_str1 = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_str1);
+        Py_XINCREF(py_str1);
     }
     if (lua_isstring(L, -2)) {
         py_str2 = PyUnicode_FromString(lua_tostring(L, -2));
     } else {
         py_str2 = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_str2);
+        Py_XINCREF(py_str2);
     }
     if (!py_str1 || !py_str2) {
         if (py_str1)
-            Py_DECREF(py_str1);
+            Py_XDECREF(py_str1);
         if (py_str2)
-            Py_DECREF(py_str2);
+            Py_XDECREF(py_str2);
         luaL_error(L, "string_le: Failed to create Python strings");
         return 0;
     }
 
     int result = PyObject_RichCompareBool(py_str2, py_str1, Py_LE);
-    Py_DECREF(py_str1);
-    Py_DECREF(py_str2);
+    Py_XDECREF(py_str1);
+    Py_XDECREF(py_str2);
     lua_pushboolean(L, result);
     return 1;
 }
@@ -236,7 +236,7 @@ int string_mul(lua_State* L) {
         return 0;
     }
     PyObject* result = PyNumber_Multiply(py_str, py_count);
-    Py_DECREF(py_count);
+    Py_XDECREF(py_count);
     if (!result) {
         luaL_error(L, "string_mul: Python string repetition failed");
         return 0;
@@ -261,7 +261,7 @@ int pushStringLua(lua_State* L, PyObject* obj) {
     if (table_string_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_INCREF(obj);
+        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_string_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushStringLua: Internal error, class index is not a table");
@@ -298,7 +298,7 @@ PyObject* convertStringPython(lua_State* L, int index) {
         return PyUnicode_FromString(lua_tostring(L, index));
     } else if (isPythonString(L, index)) {
         PyObject* py_str = *(PyObject**)lua_touserdata(L, index);
-        Py_INCREF(py_str);
+        Py_XINCREF(py_str);
         return py_str;
     }
     luaL_error(L, "convertStringPython: Expected a string or Python string object at index %d", index);

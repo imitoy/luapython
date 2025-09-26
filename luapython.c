@@ -66,13 +66,46 @@ static int python_list(lua_State* L) {
     return 1;
 }
 
+int python_tostring(lua_State* L) {
+    if (!isPythonObject(L, -1)) {
+        luaL_error(L, "python_tostring: Not a Python object");
+        return 0;
+    }
+    PyObject* obj = *(PyObject**)lua_touserdata(L, -1);
+    if(Py_IsNone(obj)){
+        lua_pushnil(L);
+        return 1;
+    }
+    PyObject* str = PyObject_Str(obj);
+    if(PyErr_Occurred()){
+        PyErr_Print();
+    }
+    if (!str) {
+        luaL_error(L, "python_tostring: Failed to convert Python object to string");
+        return 0;
+    }
+    const char* s = PyUnicode_AsUTF8(str);
+    if (!s) {
+        Py_XDECREF(str);
+        luaL_error(L, "python_tostring: Failed to get string representation");
+        return 0;
+    }
+    lua_pushstring(L, "(");
+    lua_pushstring(L, Py_TYPE(obj)->tp_name);
+    lua_pushstring(L, ")");
+    lua_pushstring(L, s);
+    lua_concat(L, 4);
+    Py_XDECREF(str);
+    return 1;
+}
+
 int python_gc(lua_State* L) {
     if (!isPythonObject(L, -1)) {
         luaL_error(L, "python_gc: Not a Python object");
         return 0;
     }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -1);
-    Py_DECREF(obj);
+    Py_XDECREF(obj);
     return 0;
 }
 
@@ -90,7 +123,10 @@ bool isPythonObject(lua_State* L, int index) {
 }
 
 int pushLua(lua_State* L, PyObject* obj) {
-    if (PyNumber_Check(obj)) {
+    if(obj == NULL || Py_IsNone(obj)) {
+        lua_pushnil(L);
+        return 1;
+    }else if (PyNumber_Check(obj)) {
         return pushNumberLua(L, obj);
     } else if (PyUnicode_Check(obj)) {
         return pushStringLua(L, obj);
@@ -106,6 +142,8 @@ int pushLua(lua_State* L, PyObject* obj) {
         return pushModuleLua(L, obj);
     } else if (PyCallable_Check(obj)) {
         return pushFunctionLua(L, obj);
+    } else if (PyIter_Check(obj)) {
+        return pushIterLua(L, obj);
     } else {
         return pushClassLua(L, obj);
     }
@@ -114,7 +152,7 @@ int pushLua(lua_State* L, PyObject* obj) {
 PyObject* convertPython(lua_State* L, int index) {
     if (lua_isuserdata(L, index)) {
         PyObject* obj = *((PyObject**)lua_touserdata(L, index));
-        Py_INCREF(obj);
+        Py_XINCREF(obj);
         return obj;
     } else if (lua_type(L, index) == LUA_TSTRING) {
         return convertStringPython(L, index);
@@ -123,7 +161,7 @@ PyObject* convertPython(lua_State* L, int index) {
     } else if (lua_isboolean(L, index)) {
         return lua_toboolean(L, index) ? Py_True : Py_False;
     } else if (lua_isnil(L, index)) {
-        Py_INCREF(Py_None);
+        Py_XINCREF(Py_None);
         return Py_None;
     } else if (lua_istable(L, index)) {
         const char prefix[] = PREFIX;
@@ -164,15 +202,21 @@ int luaopen_luapython(lua_State* L) {
     if (!Py_IsInitialized()) {
         Py_Initialize();
     }
-    lua_createtable(L, 0, 6);
+    lua_createtable(L, 0, 7);
     const char prefix[] = PREFIX;
     const char name[] = "/local/lib/lua/5.4/luapython/import.lua";
     char path1[strlen(prefix) + strlen(name) + 1];
     strcpy((char*)path1, prefix);
     strcat((char*)path1, name);
-    luaL_loadfile(L, path1);
+    if(luaL_loadfile(L, path1) != LUA_OK){
+        luaL_error(L, "luaopen_luapython:Failed to load import.lua: %s", lua_tostring(L, -1));
+        return 0;
+    }
     lua_pushcfunction(L, python_import);
-    lua_call(L, 1, 1);
+    if(lua_pcall(L, 1, 1, 0) != LUA_OK){
+        luaL_error(L, "luaopen_luapython:Error in import.lua: %s", lua_tostring(L, -1));
+        return 0;
+    }
     lua_setfield(L, -2, "import");
     lua_pushcfunction(L, python_set);
     lua_setfield(L, -2, "set");
@@ -182,12 +226,17 @@ int luaopen_luapython(lua_State* L) {
     lua_setfield(L, -2, "tuple");
     lua_pushcfunction(L, python_list);
     lua_setfield(L, -2, "list");
+    lua_pushcfunction(L, luapython_astable);
+    lua_setfield(L, -2, "astable");
     const char prefix2[] = PREFIX;
     const char name2[] = "/local/lib/lua/5.4/luapython/python_init.lua";
     char path2[strlen(prefix2) + strlen(name2) + 1];
     strcpy((char*)path2, prefix2);
     strcat((char*)path2, name2);
-    luaL_loadfile(L, path2);
+    if(luaL_loadfile(L, path2) != LUA_OK){
+        luaL_error(L, "luaopen_luapython:Failed to load python_init.lua: %s", lua_tostring(L, -1));
+        return 0;
+    }
     lua_setfield(L, -2, "init");
     return 1;
 }
@@ -203,14 +252,4 @@ int luaopen_luapython_import(lua_State* L) {
     }
     lua_pushcfunction(L, python_import);
     return 1;
-}
-
-int main() {
-    lua_State* L = luaL_newstate();
-    luaL_openlibs(L);
-    luaL_loadfile(L, "/mnt/e.lua");
-    lua_pcall(L, 0, 0, 0);
-    const char* s = lua_tostring(L, -1);
-    lua_close(L);
-    return 0;
 }

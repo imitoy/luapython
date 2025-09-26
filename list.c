@@ -41,7 +41,6 @@ int list_index(lua_State* L) {
     }
     PyObject* py_value = PyList_GetItem(py_list, py_idx);
     pushLua(L, py_value);
-    Py_XDECREF(py_value);
     return 1;
 }
 
@@ -70,39 +69,12 @@ int list_newindex(lua_State* L) {
     PyObject* old_value = PyList_GetItem(py_list, py_idx);
     int result = PyList_SetItem(py_list, py_idx, py_value);
     Py_XDECREF(py_value);
-    Py_DECREF(old_value);
     if (result < 0) {
-        Py_DECREF(py_value);
+        Py_XDECREF(py_value);
         luaL_error(L, "list_newindex: Failed to set list item");
         return 0;
     }
     return 0;
-}
-
-int list_tostring(lua_State* L) {
-    if (!(lua_istable(L, -1) || isPythonList(L, -1))) {
-        luaL_error(L, "list_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
-        return 0;
-    }
-    if (lua_istable(L, -1)) {
-        lua_pushstring(L, "list");
-        return 1;
-    }
-    PyObject* py_list = *(PyObject**)lua_touserdata(L, -1);
-    PyObject* str_repr = PyObject_Str(py_list);
-    if (!str_repr) {
-        luaL_error(L, "list_tostring: Failed to convert Python list to string");
-        return 0;
-    }
-    const char* str = PyUnicode_AsUTF8(str_repr);
-    if (!str) {
-        Py_DECREF(str_repr);
-        luaL_error(L, "list_tostring: Failed to get string representation");
-        return 0;
-    }
-    lua_pushstring(L, str);
-    Py_DECREF(str_repr);
-    return 1;
 }
 
 int list_add(lua_State* L) {
@@ -116,42 +88,42 @@ int list_add(lua_State* L) {
         py_list1 = convertPython(L, -2);
     } else {
         py_list1 = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_list1);
+        Py_XINCREF(py_list1);
     }
     if (lua_istable(L, -1)) {
         py_list2 = convertPython(L, -1);
     } else {
         py_list2 = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_list2);
+        Py_XINCREF(py_list2);
     }
     if (!py_list1 || !py_list2) {
         if (py_list1)
-            Py_DECREF(py_list1);
+            Py_XDECREF(py_list1);
         if (py_list2)
-            Py_DECREF(py_list2);
+            Py_XDECREF(py_list2);
         luaL_error(L, "list_add: Failed to create Python lists");
         return 0;
     }
     PyObject* result = PyList_New(PyList_Size(py_list1) + PyList_Size(py_list2));
     if (!result) {
-        Py_DECREF(py_list1);
-        Py_DECREF(py_list2);
+        Py_XDECREF(py_list1);
+        Py_XDECREF(py_list2);
         luaL_error(L, "list_add: Failed to create new list");
         return 0;
     }
     for (Py_ssize_t i = 0; i < PyList_Size(py_list1); ++i) {
         PyObject* item = PyList_GetItem(py_list1, i);
-        Py_INCREF(item);
+        Py_XINCREF(item);
         PyList_SetItem(result, i, item);
     }
     Py_ssize_t offset = PyList_Size(py_list1);
     for (Py_ssize_t i = 0; i < PyList_Size(py_list2); ++i) {
         PyObject* item = PyList_GetItem(py_list2, i);
-        Py_INCREF(item);
+        Py_XINCREF(item);
         PyList_SetItem(result, offset + i, item);
     }
-    Py_DECREF(py_list1);
-    Py_DECREF(py_list2);
+    Py_XDECREF(py_list1);
+    Py_XDECREF(py_list2);
     pushListLua(L, result);
     Py_XDECREF(result);
     return 1;
@@ -172,14 +144,14 @@ int list_mul(lua_State* L) {
         py_list = convertPython(L, -2);
     } else {
         py_list = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_list);
+        Py_XINCREF(py_list);
     }
     if (!py_list) {
         luaL_error(L, "list_mul: Failed to create Python list");
         return 0;
     }
     PyObject* result = PySequence_Repeat(py_list, n);
-    Py_DECREF(py_list);
+    Py_XDECREF(py_list);
     if (!result) {
         luaL_error(L, "list_mul: Failed to repeat list");
         return 0;
@@ -199,7 +171,7 @@ int pushListLua(lua_State* L, PyObject* obj) {
     if (table_list_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_INCREF(obj);
+        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_list_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushListLua: Internal error, class index is not a table");
@@ -219,7 +191,7 @@ int pushListLua(lua_State* L, PyObject* obj) {
     lua_setfield(L, -2, "__index");
     lua_pushcfunction(L, list_newindex);
     lua_setfield(L, -2, "__newindex");
-    lua_pushcfunction(L, list_tostring);
+    lua_pushcfunction(L, python_tostring);
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
@@ -244,7 +216,7 @@ PyObject* convertListPython(lua_State* L, int index) {
         return py_list;
     } else if (isPythonList(L, index)) {
         PyObject* py_list = *(PyObject**)lua_touserdata(L, index);
-        Py_INCREF(py_list);
+        Py_XINCREF(py_list);
         return py_list;
     }
 }

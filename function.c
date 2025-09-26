@@ -51,11 +51,11 @@ int function_call(lua_State* L) {
                 PyObject* key_py = PyUnicode_FromString(key);
                 if (!PySequence_Contains(keys, key_py)) {
                     lua_pop(L, 2);
-                    Py_DECREF(key_py);
+                    Py_XDECREF(key_py);
                     p = false;
                     break;
                 }
-                Py_DECREF(key_py);
+                Py_XDECREF(key_py);
             } else {
                 lua_pop(L, 2);
                 p = false;
@@ -63,11 +63,11 @@ int function_call(lua_State* L) {
             }
             lua_pop(L, 2);
         }
-        Py_DECREF(parameters);
-        Py_DECREF(keys);
-        Py_DECREF(signature_of_function);
-        Py_DECREF(signature);
-        Py_DECREF(inspect);
+        Py_XDECREF(parameters);
+        Py_XDECREF(keys);
+        Py_XDECREF(signature_of_function);
+        Py_XDECREF(signature);
+        Py_XDECREF(inspect);
         lua_pop(L, 1);
         if (p) {
             lua_pushvalue(L, -2);
@@ -83,8 +83,8 @@ int function_call(lua_State* L) {
                     PyObject* key_py = PyUnicode_FromString(key);
                     PyObject* value = convertPython(L, -1);
                     PyDict_SetItem(kwargs, key_py, value);
-                    Py_DECREF(key_py);
-                    Py_DECREF(value);
+                    Py_XDECREF(key_py);
+                    Py_XDECREF(value);
                     lua_pop(L, 1);
                 }
                 lua_pop(L, 2);
@@ -106,12 +106,12 @@ int function_call(lua_State* L) {
             if (PyErr_Occurred()) {
                 PyErr_Print();
                 luaL_error(L, "function_call: Error calling function");
-                Py_DECREF(args);
-                Py_DECREF(kwargs);
+                Py_XDECREF(args);
+                Py_XDECREF(kwargs);
                 return 0;
             }
             pushLua(L, result);
-            Py_DECREF(args);
+            Py_XDECREF(args);
             Py_XDECREF(result);
             return 1;
         }
@@ -134,21 +134,8 @@ normal:
     }
     PyObject* result = PyObject_CallObject(function, args);
     pushLua(L, result);
-    Py_DECREF(args);
+    Py_XDECREF(args);
     Py_XDECREF(result);
-    return 1;
-}
-
-int function_tostring(lua_State* L) {
-    if (!lua_isuserdata(L, -1)) {
-        luaL_error(L, "function_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
-        return 0;
-    }
-    PyObject* function = convertPython(L, -1);
-    PyObject* str = PyObject_Str(function);
-    pushLua(L, str);
-    Py_XDECREF(function);
-    Py_XDECREF(str);
     return 1;
 }
 
@@ -162,7 +149,7 @@ int pushFunctionLua(lua_State* L, PyObject* obj) {
     if (table_function_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_INCREF(obj);
+        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_function_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushFunctionLua: Internal error, class index is not a table");
@@ -181,7 +168,7 @@ int pushFunctionLua(lua_State* L, PyObject* obj) {
     lua_pushcfunction(L, function_call);
     lua_call(L, 1, 1);
     lua_setfield(L, -2, "__call");
-    lua_pushcfunction(L, function_tostring);
+    lua_pushcfunction(L, python_tostring);
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");

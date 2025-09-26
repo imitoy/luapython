@@ -2,7 +2,7 @@
 
 Library of using Python in Lua.
 
-**This project is under development...**
+**This project is under development...** Pull a request if any bug occurred.
 
 ## Quick start
 
@@ -63,3 +63,21 @@ local response = client.chat.completions.create({
 })
 
 print(response.choices[0].message.content)
+```
+
+7. Append `()` to the Python Iter Object.
+```lua
+local response = client.chat.completions.create({
+    model="deepseek-chat",
+    messages={
+        {role = "system", content = "You are a helpful assistant"},
+        {role = "user", content = "Hello"},
+    },
+    stream=true
+})
+
+for chunk in response() do
+    io.write(chunk.choices[0].delta.content)
+    io.flush()
+end
+```

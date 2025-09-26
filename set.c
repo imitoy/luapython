@@ -35,34 +35,6 @@ int set_newindex(lua_State* L) {
     return 0;
 }
 
-int set_tostring(lua_State* L) {
-    if (!isPythonSet(L, -1)) {
-        luaL_error(L, "set_tostring: Attempt to convert a %s value to string", luaL_typename(L, -1));
-        return 0;
-    }
-    if (lua_istable(L, -1)) {
-        lua_pushstring(L, "table");
-        return 1;
-    }
-    PyObject* py_set = *(PyObject**)lua_touserdata(L, -1);
-    PyObject* str_repr = PyObject_Str(py_set);
-    if (!str_repr) {
-        luaL_error(L, "set_tostring: Failed to convert Python set to string");
-        return 0;
-    }
-
-    const char* str = PyUnicode_AsUTF8(str_repr);
-    if (!str) {
-        Py_DECREF(str_repr);
-        luaL_error(L, "set_tostring: Failed to get string representation");
-        return 0;
-    }
-
-    lua_pushstring(L, str);
-    Py_DECREF(str_repr);
-    return 1;
-}
-
 int set_add(lua_State* L) {
     if (!(lua_istable(L, -1) || isPythonSet(L, -1)) || !(lua_istable(L, -2) || isPythonSet(L, -2))) {
         luaL_error(L, "set_add: Attempt to perform union on %s and %s", luaL_typename(L, -2), luaL_typename(L, -1));
@@ -74,25 +46,25 @@ int set_add(lua_State* L) {
         py_set1 = convertPython(L, -1);
     } else {
         py_set1 = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_set1);
+        Py_XINCREF(py_set1);
     }
     if (lua_istable(L, -2)) {
         py_set2 = convertPython(L, -2);
     } else {
         py_set2 = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_set2);
+        Py_XINCREF(py_set2);
     }
     if (!py_set1 || !py_set2) {
         if (py_set1)
-            Py_DECREF(py_set1);
+            Py_XDECREF(py_set1);
         if (py_set2)
-            Py_DECREF(py_set2);
+            Py_XDECREF(py_set2);
         luaL_error(L, "set_add: Failed to create Python sets");
         return 0;
     }
     PyObject* result = PyNumber_Or(py_set1, py_set2);
-    Py_DECREF(py_set1);
-    Py_DECREF(py_set2);
+    Py_XDECREF(py_set1);
+    Py_XDECREF(py_set2);
     if (!result) {
         luaL_error(L, "set_add: Python set union failed");
         return 0;
@@ -114,25 +86,25 @@ int set_mul(lua_State* L) {
         py_set1 = convertPython(L, -1);
     } else {
         py_set1 = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_set1);
+        Py_XINCREF(py_set1);
     }
     if (lua_istable(L, -2)) {
         py_set2 = convertPython(L, -2);
     } else {
         py_set2 = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_set2);
+        Py_XINCREF(py_set2);
     }
     if (!py_set1 || !py_set2) {
         if (py_set1)
-            Py_DECREF(py_set1);
+            Py_XDECREF(py_set1);
         if (py_set2)
-            Py_DECREF(py_set2);
+            Py_XDECREF(py_set2);
         luaL_error(L, "set_mul: Failed to create Python sets");
         return 0;
     }
     PyObject* result = PyNumber_And(py_set1, py_set2);
-    Py_DECREF(py_set1);
-    Py_DECREF(py_set2);
+    Py_XDECREF(py_set1);
+    Py_XDECREF(py_set2);
     if (!result) {
         luaL_error(L, "set_mul: Python set intersection failed");
         return 0;
@@ -154,25 +126,25 @@ int set_sub(lua_State* L) {
         py_set1 = convertPython(L, -1);
     } else {
         py_set1 = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_set1);
+        Py_XINCREF(py_set1);
     }
     if (lua_istable(L, -2)) {
         py_set2 = convertPython(L, -2);
     } else {
         py_set2 = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_set2);
+        Py_XINCREF(py_set2);
     }
     if (!py_set1 || !py_set2) {
         if (py_set1)
-            Py_DECREF(py_set1);
+            Py_XDECREF(py_set1);
         if (py_set2)
-            Py_DECREF(py_set2);
+            Py_XDECREF(py_set2);
         luaL_error(L, "set_sub: Failed to create Python sets");
         return 0;
     }
     PyObject* result = PyNumber_Subtract(py_set1, py_set2);
-    Py_DECREF(py_set1);
-    Py_DECREF(py_set2);
+    Py_XDECREF(py_set1);
+    Py_XDECREF(py_set2);
     if (!result) {
         luaL_error(L, "set_sub: Python set difference failed");
         return 0;
@@ -194,25 +166,25 @@ int set_bxor(lua_State* L) {
         py_set1 = convertPython(L, -1);
     } else {
         py_set1 = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_set1);
+        Py_XINCREF(py_set1);
     }
     if (lua_istable(L, -2)) {
         py_set2 = convertPython(L, -2);
     } else {
         py_set2 = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_set2);
+        Py_XINCREF(py_set2);
     }
     if (!py_set1 || !py_set2) {
         if (py_set1)
-            Py_DECREF(py_set1);
+            Py_XDECREF(py_set1);
         if (py_set2)
-            Py_DECREF(py_set2);
+            Py_XDECREF(py_set2);
         luaL_error(L, "set_bxor: Failed to create Python sets");
         return 0;
     }
     PyObject* result = PyNumber_Xor(py_set1, py_set2);
-    Py_DECREF(py_set1);
-    Py_DECREF(py_set2);
+    Py_XDECREF(py_set1);
+    Py_XDECREF(py_set2);
     if (!result) {
         luaL_error(L, "set_bxor: Python set symmetric difference failed");
         return 0;
@@ -232,7 +204,7 @@ int pushSetLua(lua_State* L, PyObject* obj) {
     if (table_set_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_INCREF(obj);
+        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_set_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushSetLua: Internal error, class index is not a table");
@@ -254,7 +226,7 @@ int pushSetLua(lua_State* L, PyObject* obj) {
     lua_setfield(L, -2, "__index");
     lua_pushcfunction(L, set_newindex);
     lua_setfield(L, -2, "__newindex");
-    lua_pushcfunction(L, set_tostring);
+    lua_pushcfunction(L, python_tostring);
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
@@ -270,7 +242,7 @@ PyObject* convertSetPython(lua_State* L, int index) {
         return py_set;
     } else if (isPythonSet(L, index)) {
         PyObject* py_set = *(PyObject**)lua_touserdata(L, index);
-        Py_INCREF(py_set);
+        Py_XINCREF(py_set);
         return py_set;
     }
     luaL_error(L, "convertSetPython: Attempt to convert a %s value to Python set", luaL_typename(L, index));

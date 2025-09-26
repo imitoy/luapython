@@ -24,14 +24,14 @@ int number_add(lua_State* L) {
         py_a = PyFloat_FromDouble(a);
     } else {
         py_a = *(PyObject**)lua_touserdata(L, -1);
-        Py_INCREF(py_a);
+        Py_XINCREF(py_a);
     }
     if (lua_isnumber(L, -2)) {
         double b = lua_tonumber(L, -2);
         py_b = PyFloat_FromDouble(b);
     } else {
         py_b = *(PyObject**)lua_touserdata(L, -2);
-        Py_INCREF(py_b);
+        Py_XINCREF(py_b);
     }
     if (!py_a || !py_b) {
         luaL_error(L, "number_add: Failed to convert Lua numbers to Python numbers");
@@ -43,8 +43,8 @@ int number_add(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
-        Py_DECREF(py_b);
+        Py_XDECREF(py_a);
+        Py_XDECREF(py_b);
         Py_XDECREF(result);
     return 1;
 }
@@ -90,8 +90,8 @@ int number_sub(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
-        Py_DECREF(py_b);
+        Py_XDECREF(py_a);
+        Py_XDECREF(py_b);
         Py_XDECREF(result);
     return 1;
 }
@@ -137,8 +137,8 @@ int number_mul(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
-        Py_DECREF(py_b);
+        Py_XDECREF(py_a);
+        Py_XDECREF(py_b);
         Py_XDECREF(result);
     return 1;
 }
@@ -188,8 +188,8 @@ int number_div(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
-        Py_DECREF(py_b);
+        Py_XDECREF(py_a);
+        Py_XDECREF(py_b);
         Py_XDECREF(result);
     return 1;
 }
@@ -239,8 +239,8 @@ int number_mod(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
-        Py_DECREF(py_b);
+        Py_XDECREF(py_a);
+        Py_XDECREF(py_b);
         Py_XDECREF(result);
     return 1;
 }
@@ -286,8 +286,8 @@ int number_pow(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
-        Py_DECREF(py_b);
+        Py_XDECREF(py_a);
+        Py_XDECREF(py_b);
         Py_XDECREF(result);
     return 1;
 }
@@ -320,7 +320,7 @@ int number_unm(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
         Py_XDECREF(result);
     return 1;
 }
@@ -370,8 +370,8 @@ int number_idiv(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
-        Py_DECREF(py_b);
+        Py_XDECREF(py_a);
+        Py_XDECREF(py_b);
         Py_XDECREF(result);
     return 1;
 }
@@ -417,8 +417,8 @@ int number_band(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
-        Py_DECREF(py_b);
+        Py_XDECREF(py_a);
+        Py_XDECREF(py_b);
         Py_XDECREF(result);
     return 1;
 }
@@ -462,8 +462,8 @@ int number_bor(lua_State* L) {
         return 0;
     }
     pushNumberLua(L, result);
-        Py_DECREF(py_a);
-        Py_DECREF(py_b);
+        Py_XDECREF(py_a);
+        Py_XDECREF(py_b);
         Py_XDECREF(result);
     return 1;
 }
@@ -512,9 +512,9 @@ int number_bxor(lua_State* L) {
     }
     pushNumberLua(L, result);
     if (release_a)
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
     if (release_b)
-        Py_DECREF(py_b);
+        Py_XDECREF(py_b);
     return 1;
 }
 
@@ -548,7 +548,7 @@ int number_bnot(lua_State* L) {
     }
     pushNumberLua(L, result);
     if (release_a)
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
     return 1;
 }
 
@@ -596,9 +596,9 @@ int number_shl(lua_State* L) {
     }
     pushNumberLua(L, result);
     if (release_a)
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
     if (release_b)
-        Py_DECREF(py_b);
+        Py_XDECREF(py_b);
     return 1;
 }
 
@@ -646,9 +646,9 @@ int number_shr(lua_State* L) {
     }
     pushNumberLua(L, result);
     if (release_a)
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
     if (release_b)
-        Py_DECREF(py_b);
+        Py_XDECREF(py_b);
     return 1;
 }
 
@@ -680,12 +680,12 @@ int number_len(lua_State* L) {
     Py_ssize_t result = PyObject_Length(py_a);
     if (result < 0) {
         luaL_error(L, "number_len: Python length failed");
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
         return 0;
     }
     lua_pushinteger(L, result);
     if (release_a)
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
     return 1;
 }
 
@@ -721,9 +721,9 @@ int number_eq(lua_State* L) {
     int result = PyObject_RichCompareBool(py_b, py_a, Py_EQ);
     lua_pushboolean(L, result);
     if (release_a)
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
     if (release_b)
-        Py_DECREF(py_b);
+        Py_XDECREF(py_b);
     return 1;
 }
 
@@ -759,9 +759,9 @@ int number_lt(lua_State* L) {
     int result = PyObject_RichCompareBool(py_b, py_a, Py_LT);
     lua_pushboolean(L, result);
     if (release_a)
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
     if (release_b)
-        Py_DECREF(py_b);
+        Py_XDECREF(py_b);
     return 1;
 }
 
@@ -797,9 +797,9 @@ int number_le(lua_State* L) {
     int result = PyObject_RichCompareBool(py_b, py_a, Py_LE);
     lua_pushboolean(L, result);
     if (release_a)
-        Py_DECREF(py_a);
+        Py_XDECREF(py_a);
     if (release_b)
-        Py_DECREF(py_b);
+        Py_XDECREF(py_b);
     return 1;
 }
 
@@ -819,7 +819,7 @@ int number_tostring(lua_State* L) {
         return 0;
     }
     lua_pushstring(L, PyUnicode_AsUTF8(result));
-    Py_DECREF(result);
+    Py_XDECREF(result);
     return 1;
 }
 
@@ -846,7 +846,7 @@ int pushNumberLua(lua_State* L, PyObject* obj) {
     if (table_number_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_INCREF(obj);
+        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_number_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushNumberLua: Internal error, class index is not a table");

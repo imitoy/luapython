@@ -37,7 +37,7 @@ int pushModuleLua(lua_State* L, PyObject* obj) {
     if (table_module_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_INCREF(obj);
+        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_module_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushModuleLua: Internal error, class index is a %s", luaL_typename(L, -1));
@@ -46,13 +46,15 @@ int pushModuleLua(lua_State* L, PyObject* obj) {
         lua_setmetatable(L, -2);
         return 1;
     }
-    lua_createtable(L, 0, 3);
+    lua_createtable(L, 0, 4);
     lua_pushcfunction(L, module_index);
     lua_setfield(L, -2, "__index");
     lua_pushstring(L, PYTHON_OBJECT_NAME);
     lua_setfield(L, -2, "__name");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
+    lua_pushcfunction(L, python_tostring);
+    lua_setfield(L, -2, "__tostring");
     table_module_index = luaL_ref(L, LUA_REGISTRYINDEX);
     return pushModuleLua(L, obj);
 }
