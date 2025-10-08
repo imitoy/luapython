@@ -2,7 +2,9 @@
 
 Library of using Python in Lua.
 
-**This project is under development...** Pull a request if any bug occurred.
+**This project is under development...**
+
+Pull a request if any bug occurred.
 
 ## Quick start
 
