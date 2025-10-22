@@ -152,6 +152,12 @@ LD_LIBRARY_PATH=%s
 
 ]], prefix_lua, compiler, lua_version, lua_version == "luajit" and getLuaVersion(true) or lua_version, ldflags, prefix_python.."/lib")
 
+print("Using compiler: "..compiler)
+print("Using lua version: "..lua_version)
+print("Using python lib: "..libpython)
+print("Using prefix: "..prefix_lua)
+print("Using python prefix: "..prefix_python)
+
 local make = [[PREFIX ?= /usr
 
 LUA_VERSION ?= 5.4

@@ -1,12 +1,18 @@
 # luapython
 
-Library of using Python in Lua.
+Library of manipulating Python in Lua.
 
-**This project is under development...** Pull a request if any bug occurred.
+**This project is under development...**
+
+Create an issue if any bug occurred.
+
+::: note
+This project is only supported on Linux temporarily.
+:::
 
 ## Quick start
 
-1. Install Lua and Python. (latest)
+1. Install Lua and Python. (latest version recommended)
 
 2. Build this project.
 ```bash

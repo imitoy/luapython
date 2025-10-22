@@ -21,7 +21,6 @@ bool isPythonObject(lua_State* L, int index);
 int luapython_astable(lua_State* L);
 
 int pushNumberLua(lua_State* L, PyObject* number);
-int pushBooleanLua(lua_State* L, PyObject* boolean);
 int pushStringLua(lua_State* L, PyObject* string);
 int pushSetLua(lua_State* L, PyObject* set);
 int pushDictLua(lua_State* L, PyObject* dict);

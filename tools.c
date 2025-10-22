@@ -6,6 +6,21 @@ int luapython_astable(lua_State* L) {
         return 0;
     }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -1);
+    PyObject* iter = PyObject_GetIter(obj);
+    if(PyErr_Occurred()) {
+        PyErr_Clear();
+    }
+    if(iter) {
+        lua_newtable(L);
+        PyObject* item;
+        int index = 1;
+        while((item = PyIter_Next(iter)) != NULL) {
+            pushLua(L, item);
+            lua_rawseti(L, -2, index++);
+            Py_XDECREF(item);
+        }
+        return 1;
+    }
     PyObject* dir = PyObject_Dir(obj);
     if(PyErr_Occurred()) {
         PyErr_Print();
