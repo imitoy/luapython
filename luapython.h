@@ -1,4 +1,4 @@
-#include <Python.h>
+#include <python3.13/Python.h>
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
