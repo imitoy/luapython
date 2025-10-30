@@ -14,14 +14,12 @@ This project is only supported on Linux temporarily.
 
 1. Install Lua and Python. (latest version recommended)
 
-2. Build this project.
+2. Build & install this project.
 ```bash
 git clone https://github.com/imitoy/luapython.git
 cd luapython
-lua configure.lua --compiler=gcc # add --help to get more information
-make # Requires Lua and Python headers
-sudo make install
-# when uninstall, just replace with `uninstall`
+sudo luarocks install luapython-0.1.1-1.rockspec # require python headers
+# when uninstall, replace 'install' with 'remove'
 ```
 3. Import this library in Lua.
 ```lua
