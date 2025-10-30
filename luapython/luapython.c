@@ -164,15 +164,11 @@ PyObject* convertPython(lua_State* L, int index) {
         Py_XINCREF(Py_None);
         return Py_None;
     } else if (lua_istable(L, index)) {
-        const char prefix[] = PREFIX;
-        const char name[] = "/local/lib/lua/5.4/luapython/convert_pre.lua";
-        char path[strlen(prefix) + strlen(name) + 1];
-        strcpy((char*)path, prefix);
-        strcat((char*)path, name);
-        int ret = luaL_loadfile(L, path);
-        if (ret != LUA_OK) {
-            luaL_error(L, "Failed to load convert_pre.lua: %s", lua_tostring(L, -1));
-            return NULL;
+        lua_rawgeti(L, LUA_REGISTRYINDEX, tools_should_convert_to_dict);
+        if(lua_isnil(L, -1)){
+            loadTools(L);
+            lua_pop(L, 1);
+            lua_rawgeti(L, LUA_REGISTRYINDEX, tools_should_convert_to_dict);
         }
         lua_pushvalue(L, index > 0 ? index + 1 : index - 1);
         if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
@@ -193,7 +189,7 @@ PyObject* convertPython(lua_State* L, int index) {
     return NULL;
 }
 
-int luaopen_luapython(lua_State* L) {
+int luaopen_luapython_core(lua_State* L) {
     void* handle = dlopen(PYTHON_LIB, RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
         luaL_error(L, "Failed to load %s: %s", PYTHON_LIB, dlerror());
@@ -203,19 +199,12 @@ int luaopen_luapython(lua_State* L) {
         Py_Initialize();
     }
     lua_createtable(L, 0, 7);
-    const char prefix[] = PREFIX;
-    const char name[] = "/local/lib/lua/5.4/luapython/import.lua";
-    char path1[strlen(prefix) + strlen(name) + 1];
-    strcpy((char*)path1, prefix);
-    strcat((char*)path1, name);
-    if(luaL_loadfile(L, path1) != LUA_OK){
-        luaL_error(L, "luaopen_luapython:Failed to load import.lua: %s", lua_tostring(L, -1));
-        return 0;
+    if(luaL_dostring(L, "local lib = require(\"luapython.import\") return lib") != LUA_OK){
+        luaL_error(L, "luaopen_luapython_core: Failed to load internal tools");
     }
     lua_pushcfunction(L, python_import);
     if(lua_pcall(L, 1, 1, 0) != LUA_OK){
-        luaL_error(L, "luaopen_luapython:Error in import.lua: %s", lua_tostring(L, -1));
-        return 0;
+        luaL_error(L, "luaopen_luapython_core: Failed to get import function: %s", lua_tostring(L, -1));
     }
     lua_setfield(L, -2, "import");
     lua_pushcfunction(L, python_set);
@@ -228,20 +217,18 @@ int luaopen_luapython(lua_State* L) {
     lua_setfield(L, -2, "list");
     lua_pushcfunction(L, luapython_astable);
     lua_setfield(L, -2, "astable");
-    const char prefix2[] = PREFIX;
-    const char name2[] = "/local/lib/lua/5.4/luapython/python_init.lua";
-    char path2[strlen(prefix2) + strlen(name2) + 1];
-    strcpy((char*)path2, prefix2);
-    strcat((char*)path2, name2);
-    if(luaL_loadfile(L, path2) != LUA_OK){
-        luaL_error(L, "luaopen_luapython:Failed to load python_init.lua: %s", lua_tostring(L, -1));
-        return 0;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, tools_release_to_env);
+    if(lua_isnil(L, -1)){
+        loadTools(L);
+        lua_pop(L, 1);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, tools_release_to_env);
     }
     lua_setfield(L, -2, "init");
+    int d = tools_release_to_env;
     return 1;
 }
 
-int luaopen_luapython_import(lua_State* L) {
+int luaopen_luapython_core_import(lua_State* L) {
     void* handle = dlopen(PYTHON_LIB, RTLD_LAZY | RTLD_GLOBAL);
     if (!handle) {
         luaL_error(L, "Failed to load %s: %s", PYTHON_LIB, dlerror());

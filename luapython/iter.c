@@ -58,12 +58,12 @@ int pushIterLua(lua_State* L, PyObject* iter) {
         return 1;
     }
     lua_createtable(L, 0, 4);
-    const char prefix[] = PREFIX;
-    const char name[] = "/local/lib/lua/5.4/luapython/iter.lua";
-    char path[strlen(prefix) + strlen(name) + 1];
-    strcpy((char*)path, prefix);
-    strcat((char*)path, name);
-    luaL_loadfile(L, path);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, tools_get_iter_function);
+    if(lua_isnil(L, -1)){
+        loadTools(L);
+        lua_pop(L, 1);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, tools_get_iter_function);
+    }
     lua_pushcfunction(L, lua_iter);
     lua_pushcfunction(L, lua_getiter);
     if(lua_pcall(L, 2, 1, 0) != LUA_OK) {

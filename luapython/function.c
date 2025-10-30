@@ -157,12 +157,12 @@ int pushFunctionLua(lua_State* L, PyObject* obj) {
         return 1;
     }
     lua_createtable(L, 0, 4);
-    const char prefix[] = PREFIX;
-    const char name[] = "/local/lib/lua/5.4/luapython/python_function.lua";
-    char path[strlen(prefix) + strlen(name) + 1];
-    strcpy((char*)path, prefix);
-    strcat((char*)path, name);
-    luaL_loadfile(L, path);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, tools_get_python_adapt_function);
+    if(lua_isnil(L, -1)){
+        loadTools(L);
+        lua_pop(L, 1);
+        lua_rawgeti(L, LUA_REGISTRYINDEX, tools_get_python_adapt_function);
+    }
     lua_pushcfunction(L, function_call);
     lua_call(L, 1, 1);
     lua_setfield(L, -2, "__call");

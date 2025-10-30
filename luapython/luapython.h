@@ -3,7 +3,8 @@
 #include <lauxlib.h>
 #include <lualib.h>
 #include <stdbool.h>
-#include <stdio.h>
+
+#include "tools.h"
 
 #ifndef PREFIX
 #define PREFIX "/usr"
@@ -17,8 +18,6 @@ int python_tostring(lua_State* L);
 int python_gc(lua_State* L);
 
 bool isPythonObject(lua_State* L, int index);
-
-int luapython_astable(lua_State* L);
 
 int pushNumberLua(lua_State* L, PyObject* number);
 int pushStringLua(lua_State* L, PyObject* string);

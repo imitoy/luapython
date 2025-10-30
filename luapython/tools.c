@@ -1,4 +1,10 @@
+#include "tools.h"
 #include "luapython.h"
+
+int tools_should_convert_to_dict = -1;
+int tools_release_to_env = -1;
+int tools_get_python_adapt_function = -1;
+int tools_get_iter_function = -1;
 
 int luapython_astable(lua_State* L) {
     if(!isPythonObject(L, -1)) {
@@ -62,4 +68,43 @@ int luapython_astable(lua_State* L) {
     }
     Py_XDECREF(dir);
     return 1;
+}
+
+void loadTools(lua_State* L){
+    if(luaL_dostring(L, "return require \"luapython.tools\"") != LUA_OK){
+        luaL_error(L, "loadTools: Failed to load internal tools");
+    }
+    int index = -4;
+    if(lua_istable(L, -1)){
+        index = -2;
+    }else if(lua_istable(L, -2)){
+        index = -3;
+    }else{
+        luaL_error(L, "loadtools: table expected, got %s", luaL_typename(L, -1));
+    }
+    lua_pushstring(L, "shouldConvertToDict");
+    lua_rawget(L, index);
+    if(!lua_isfunction(L, -1)){
+        luaL_error(L, "loadTools: index shouldConvertToDict - function expected, got %s", luaL_typename(L, -1));
+    }
+    tools_should_convert_to_dict = luaL_ref(L, LUA_REGISTRYINDEX);
+    lua_pushstring(L, "releaseToEnv");
+    lua_rawget(L, index);
+    if(!lua_isfunction(L, -1)){
+        luaL_error(L, "loadTools: index releaseToEnv - function expected, got %s", luaL_typename(L, -1));
+    }
+    tools_release_to_env = luaL_ref(L, LUA_REGISTRYINDEX);
+    lua_pushstring(L, "getPythonAdaptFunction");
+    lua_rawget(L, index);
+    if(!lua_isfunction(L, -1)){
+        luaL_error(L, "loadTools: index getPythonAdaptFunction - function expected, got %s", luaL_typename(L, -1));
+    }
+    tools_get_python_adapt_function = luaL_ref(L, LUA_REGISTRYINDEX);
+    lua_pushstring(L, "getIterFunction");
+    lua_rawget(L, index);
+    if(!lua_isfunction(L, -1)){
+        luaL_error(L, "loadTools: index getIterFunction - function expected, got %s", luaL_typename(L, -1));
+    }
+    tools_get_iter_function = luaL_ref(L, LUA_REGISTRYINDEX);
+    lua_pop(L, -(index+1));
 }
