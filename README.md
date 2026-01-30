@@ -6,9 +6,7 @@ Library of manipulating Python in Lua.
 
 Create an issue if any bug occurred.
 
-::: note
-This project is only supported on Linux temporarily.
-:::
+> This project is only supported on Linux temporarily.
 
 ## Quick start
 
