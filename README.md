@@ -83,3 +83,9 @@ for chunk in response() do
     io.flush()
 end
 ```
+
+## TODO
+
+- [ ] Support for Python version 3.x
+- [ ] Conda support
+- [ ] Integrate Python error in Lua
