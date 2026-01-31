@@ -86,6 +86,6 @@ end
 
 ## TODO
 
-- [ ] Support for Python version 3.x
+- [ ] Support for Python version above 3.8
 - [ ] Conda support
 - [ ] Integrate Python error in Lua
