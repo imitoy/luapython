@@ -10,7 +10,7 @@ Create an issue if any bug occurred.
 
 ## Quick start
 
-1. Install Lua and Python. (latest version recommended)
+1. Install Lua and Python. (3.13 only)
 
 2. Build & install this project.
 ```bash
