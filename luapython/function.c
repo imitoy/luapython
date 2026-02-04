@@ -30,6 +30,7 @@ int function_call(lua_State* L) {
             Py_XDECREF(signature_of_function);
             Py_XDECREF(signature);
             Py_XDECREF(inspect);
+            lua_pop(L, 2);
             goto normal;
         }
         PyObject* parameters = PyObject_GetAttrString(signature_of_function, "parameters");
@@ -114,6 +115,7 @@ int function_call(lua_State* L) {
             Py_XDECREF(result);
             return 1;
         }
+        lua_pop(L, 1);
     }
 
 normal:
