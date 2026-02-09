@@ -818,7 +818,7 @@ int number_tostring(lua_State* L) {
         luaL_error(L, "number_tostring: Python string conversion failed");
         return 0;
     }
-    lua_pushstring(L, PyUnicode_AsUTF8(result));
+    pushStringLua(L, result);
     Py_XDECREF(result);
     return 1;
 }

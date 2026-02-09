@@ -45,14 +45,15 @@ int luapython_astable(lua_State* L) {
         if(!PyUnicode_Check(item)) {
             continue;
         }
-        const char* key = PyUnicode_AsUTF8(item);
+        PyObject* bytes = PyUnicode_AsEncodedString(item, "utf-8", "surrogateescape");
+        const char* key = PyBytes_AsString(bytes);
         if(key == NULL) {
             PyErr_Print();
             luaL_error(L, "luapython_astable: Failed to convert attribute name to UTF-8");
             Py_XDECREF(dir);
             return 0;
         }
-        PyObject* value = PyObject_GetAttrString(obj, key);
+        PyObject* value = PyObject_GetAttr(obj, item);
         if(value == NULL) {
             PyErr_Clear();
             continue;

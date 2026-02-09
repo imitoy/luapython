@@ -1,4 +1,5 @@
 #include "luapython.h"
+#include <lua.h>
 
 #define isPythonString(L, index) (isPythonObject(L, index) && PyUnicode_Check(*(PyObject**)lua_touserdata(L, index)))
 
@@ -59,7 +60,7 @@ int string_len(lua_State* L) {
         return 1;
     }
     PyObject* py_str = *(PyObject**)lua_touserdata(L, -1);
-    Py_ssize_t len = PyUnicode_GET_LENGTH(py_str);
+    Py_ssize_t len = PyUnicode_GetLength(py_str);
     lua_pushinteger(L, len);
     return 1;
 }
@@ -102,7 +103,6 @@ int string_eq(lua_State* L) {
     Py_XDECREF(py_str1);
     Py_XDECREF(py_str2);
     lua_pushboolean(L, result);
-    Py_XDECREF(result);
     return 1;
 }
 
@@ -197,13 +197,7 @@ int string_tostring(lua_State* L) {
         return 1;
     }
     PyObject* py_str = *(PyObject**)lua_touserdata(L, -1);
-    const char* str = PyUnicode_AsUTF8(py_str);
-    if (!str) {
-        luaL_error(L, "string_tostring: Failed to convert Python string to Lua string");
-        return 0;
-    }
-    lua_pushstring(L, str);
-    return 1;
+    return pushStringLua(L, py_str);
 }
 
 int string_mul(lua_State* L) {
@@ -253,9 +247,12 @@ int pushStringLua(lua_State* L, PyObject* obj) {
         luaL_error(L, "pushStringLua: Expected a Python string object");
         return 1;
     }
-    const char* str = PyUnicode_AsUTF8(obj);
+    PyObject* bytes = PyUnicode_AsEncodedString(obj, "utf-8", "surrogateescape");
     if (!PyErr_Occurred()) {
-        lua_pushstring(L, str);
+        const char* str = PyBytes_AsString(bytes);
+        Py_ssize_t size = PyBytes_Size(bytes);
+        lua_pushlstring(L, str, size);
+        Py_DECREF(bytes);
         return 1;
     }
     if (table_string_index != 0) {

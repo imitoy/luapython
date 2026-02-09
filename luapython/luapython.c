@@ -1,11 +1,21 @@
 #include "luapython.h"
+#include "object.h"
+#include "pylifecycle.h"
+#include "pytypedefs.h"
 #include <dlfcn.h>
+#include <lauxlib.h>
+#include <lua.h>
 
 #ifndef PYTHON_LIB
 #define PYTHON_LIB "libpython3.13.so"
 #endif
 
+void* dl_addr = NULL;
+
 static int python_import(lua_State* L) {
+    if(!Py_IsInitialized()){
+        luaL_error(L, "luapython has not been loaded");
+    }
     if (!lua_isstring(L, -2)) {
         luaL_error(L, luaL_typename(L, -2));
         return 0;
@@ -84,16 +94,7 @@ int python_tostring(lua_State* L) {
         luaL_error(L, "python_tostring: Failed to convert Python object to string");
         return 0;
     }
-    const char* s = PyUnicode_AsUTF8(str);
-    if (!s) {
-        Py_XDECREF(str);
-        luaL_error(L, "python_tostring: Failed to get string representation");
-        return 0;
-    }
-    lua_pushstring(L, "(");
-    lua_pushstring(L, Py_TYPE(obj)->tp_name);
-    lua_pushstring(L, ")");
-    lua_pushstring(L, s);
+    pushStringLua(L, str);
     lua_concat(L, 4);
     Py_XDECREF(str);
     return 1;
@@ -189,16 +190,59 @@ PyObject* convertPython(lua_State* L, int index) {
     return NULL;
 }
 
-int luaopen_luapython_core(lua_State* L) {
-    void* handle = dlopen(PYTHON_LIB, RTLD_LAZY | RTLD_GLOBAL);
-    if (!handle) {
-        luaL_error(L, "Failed to load %s: %s", PYTHON_LIB, dlerror());
+static int loadPython(lua_State* L){
+    if(dl_addr != NULL){
+        luaL_error(L, "luapython has been loaded");
         return 0;
     }
-    if (!Py_IsInitialized()) {
-        Py_Initialize();
+    const char* version = lua_tostring(L, -1);
+    int len = lua_rawlen(L, -1);
+    // libpython .so
+    char buffer[13+len];
+    const char* str1 = "libpython";
+    const char* str2 = ".so";
+    for(int i = 0; i < 9; i++){
+        buffer[i] = str1[i];
     }
-    lua_createtable(L, 0, 7);
+    for(int i = 0; i < len; i++){
+        buffer[9+i] = version[i];
+    }
+    for(int i = 0; i < 4; i++){
+        buffer[9+len+i] = str2[i];
+    }
+    const char* name = buffer;
+    dl_addr = dlopen(name, RTLD_LAZY | RTLD_GLOBAL);
+    if(!dl_addr){
+        luaL_error(L, "Failed to load %s\n%s", name, dlerror());
+    }
+    Py_Initialize();
+    return 0;
+}
+
+static int isPythonLoaded(lua_State* L){
+    lua_pushboolean(L, dl_addr != NULL);
+    return 1;
+}
+
+static int unloadPython(lua_State* L){
+    // TODO
+    return 0;
+
+    if(!dl_addr){
+        luaL_error(L, "luapython has not been loaded. You may load luapython first by calling luapython.load(<python_version>).");
+        return 0;
+    }
+    Py_Finalize();
+    int ret = dlclose(dl_addr);
+    if(!ret){
+        luaL_error(L, "unloadPython: dlclose error. \n%s", dlerror());
+        return 0;
+    }
+    return 0;
+}
+
+int luaopen_luapython_core(lua_State* L) {
+    lua_createtable(L, 0, 9);
     if(luaL_dostring(L, "local lib = require(\"luapython.import\") return lib") != LUA_OK){
         luaL_error(L, "luaopen_luapython_core: Failed to load internal tools");
     }
@@ -224,19 +268,15 @@ int luaopen_luapython_core(lua_State* L) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, tools_release_to_env);
     }
     lua_setfield(L, -2, "init");
+    lua_pushcfunction(L, loadPython);
+    lua_setfield(L, -2, "loadNative");
+    lua_pushcfunction(L, isPythonLoaded);
+    lua_setfield(L, -2, "isLoaded");
     int d = tools_release_to_env;
     return 1;
 }
 
 int luaopen_luapython_core_import(lua_State* L) {
-    void* handle = dlopen(PYTHON_LIB, RTLD_LAZY | RTLD_GLOBAL);
-    if (!handle) {
-        luaL_error(L, "Failed to load %s: %s", PYTHON_LIB, dlerror());
-        return 0;
-    }
-    if (!Py_IsInitialized()) {
-        Py_Initialize();
-    }
     lua_pushcfunction(L, python_import);
     return 1;
 }

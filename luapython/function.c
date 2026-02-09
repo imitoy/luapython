@@ -15,7 +15,7 @@ int function_call(lua_State* L) {
     }
     PyObject* function = *(PyObject**)lua_touserdata(L, python_func_index);
     if (!PyCallable_Check(function)) {
-        luaL_error(L, "function_call: Attempt to call a %s object", Py_TYPE(function)->tp_name);
+        luaL_error(L, "function_call: Attempt to call a %s object", getPythonTypeName(function));
         return 0;
     }
     if (nargs == 1 && lua_istable(L, -2)) {

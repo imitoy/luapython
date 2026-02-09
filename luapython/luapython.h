@@ -1,4 +1,6 @@
-#include <python3.13/Python.h>
+#define Py_LIMITED_API 0x03080000
+
+#include <Python.h>
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
@@ -10,7 +12,13 @@
 #define PREFIX "/usr"
 #endif
 
+#ifndef PYTHON_DEFAULT_VERSION
+#define PYTHON_DEFAULT_VERSION 3.14
+#endif
+
 #define PYTHON_OBJECT_NAME "python_object"
+
+#define getPythonTypeName(obj) (PyBytes_AsString(PyUnicode_AsEncodedString(PyObject_GetAttrString((PyObject*)Py_TYPE(obj), "__name__"), "utf-8", "surrogateescape")))
 
 int luaopen_luapython(lua_State* L);
 

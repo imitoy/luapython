@@ -1,4 +1,6 @@
 #include "luapython.h"
+#include "object.h"
+#include "unicodeobject.h"
 
 int module_index(lua_State* L) {
     if (!lua_isstring(L, -1)) {
@@ -9,7 +11,7 @@ int module_index(lua_State* L) {
     PyObject* module = convertPython(L, -2);
     PyObject* value = PyObject_GetAttrString(module, key);
     if (value == NULL) {
-        luaL_error(L, "module_index: Attribute %s not found in module %s", key, Py_TYPE(module)->tp_name);
+        luaL_error(L, "module_index: Attribute %s not found in module %s", key, getPythonTypeName(value));
         return 0;
     }
     pushLua(L, value);

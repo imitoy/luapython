@@ -1,4 +1,5 @@
 CXX = gcc
+CXXFLAGS = -I/usr/include/python3.14
 LUA_VERSION = 5.4
 LDFLAGS = /usr/lib/liblua.so.5.4 /usr/lib/libpython3.so
 LD_LIBRARY_PATH = /usr/lib /usr/lib/python3.14/
@@ -39,7 +40,7 @@ $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 debug: $(TARGET)
-	$(CXX) $(CXXFLAGS) -c luapython/debug.c -o debug.o
+	# $(CXX) $(CXXFLAGS) -c luapython/debug.c -o debug.o
 
 clean:
 	rm -rf luapython/*.o
