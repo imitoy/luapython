@@ -1,5 +1,4 @@
 #include "luapython.h"
-#include <lua.h>
 
 #define isPythonString(L, index) (isPythonObject(L, index) && PyUnicode_Check(*(PyObject**)lua_touserdata(L, index)))
 

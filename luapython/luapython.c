@@ -1,10 +1,5 @@
 #include "luapython.h"
-#include "object.h"
-#include "pylifecycle.h"
-#include "pytypedefs.h"
 #include <dlfcn.h>
-#include <lauxlib.h>
-#include <lua.h>
 
 #ifndef PYTHON_LIB
 #define PYTHON_LIB "libpython3.13.so"

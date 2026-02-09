@@ -1,6 +1,4 @@
 #include "luapython.h"
-#include "object.h"
-#include "unicodeobject.h"
 
 int module_index(lua_State* L) {
     if (!lua_isstring(L, -1)) {
