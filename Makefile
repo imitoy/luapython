@@ -1,17 +1,21 @@
 CXX = gcc
 CXXFLAGS = -I/usr/include/python3.14
-LUA_VERSION = 5.4
-LDFLAGS = /usr/lib/liblua.so.5.4 /usr/lib/libpython3.so
-LD_LIBRARY_PATH = /usr/lib /usr/lib/python3.14/
+LUA_LIBDIR ?= /usr/lib
+LUA_VERSION ?= 5.4
+LDFLAGS = -L$(LUA_LIBDIR) $(shell python-config --ldflags) -lpython3 -llua
+# LD_LIBRARY_PATH = /usr/lib /usr/lib/python3.14/
 
 PREFIX ?= /usr
 
 CXX ?= gcc
 CXXFLAGS += -O2 -fPIC -g -I./luapython/
-LUA_VERSION = 5.4
+LUA_VERSION ?= 5.4
 LDFLAGS += -lm -ldl
 
 TARGET = luapython.so
+
+INSTALL_LIBDIR ?= $(PREFIX)/lib/lua/$(LUA_VERSION)
+INSTALL_LUADIR ?= $(PREFIX)/share/lua/$(LUA_VERSION)
 
 SOURCES = \
     luapython/luapython.c \
@@ -31,7 +35,7 @@ SOURCES = \
 
 OBJECTS = $(SOURCES:.c=.o)
 
-all: $(TARGET) debug
+all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS)
@@ -47,12 +51,12 @@ clean:
 	rm -f luapython.so
 
 install: $(TARGET)
-	mkdir -p $(PREFIX)/lib/lua/$(LUA_VERSION)/luapython
-	mkdir -p $(PREFIX)/share/lua/$(LUA_VERSION)/luapython
-	cp $(TARGET) $(PREFIX)/lib/lua/$(LUA_VERSION)/luapython/core.so
-	cp luapython/*.lua $(PREFIX)/share/lua/$(LUA_VERSION)/luapython
+	mkdir -p $(INSTALL_LIBDIR)/luapython
+	mkdir -p $(INSTALL_LUADIR)/luapython
+	cp $(TARGET) $(INSTALL_LIBDIR)/luapython/core.so
+	cp luapython/*.lua $(INSTALL_LUADIR)/luapython
 
 uninstall:
-	rm -rf $(PREFIX)/lib/lua/$(LUA_VERSION)/luapython
-	rm -rf $(PREFIX)/share/lua/$(LUA_VERSION)/luapython
+	rm -rf $(INSTALL_LUADIR)/luapython
+	rm -rf $(INSTALL_LIBDIR)/luapython
 

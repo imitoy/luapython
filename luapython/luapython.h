@@ -12,10 +12,6 @@
 #define PREFIX "/usr"
 #endif
 
-#ifndef PYTHON_DEFAULT_VERSION
-#define PYTHON_DEFAULT_VERSION 3.14
-#endif
-
 #define PYTHON_OBJECT_NAME "python_object"
 
 #define getPythonTypeName(obj) (PyBytes_AsString(PyUnicode_AsEncodedString(PyObject_GetAttrString((PyObject*)Py_TYPE(obj), "__name__"), "utf-8", "surrogateescape")))
