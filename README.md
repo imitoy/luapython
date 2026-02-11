@@ -10,49 +10,40 @@ Create an issue if any bug occurred.
 
 ## Quick start
 
-1. Install Lua and Python. (Latest Lua version recommended and 3.13 for Python only now)
+1. Install Lua and Python. (Latest Lua version recommended)
 
 2. Build & install this project.
 ```bash
 git clone https://github.com/imitoy/luapython.git
 cd luapython
-sudo luarocks install luapython-0.1.1-1.rockspec # require python headers
-# when uninstall, replace 'install' with 'remove'
+sudo make install # require python headers
+# when uninstall, replace 'install' with 'uninstall
 ```
-3. Import this library in Lua.
+3. Import this library and load with python version in Lua.
 ```lua
--- Import all
 luapython=require "luapython"
--- Then use luapython.import, luapython.dict ...
-
--- Import all to _G or other env
-luapython=require "luapython"
-luapython:init(_G)
--- Then use _G.import, _G.dict ...
-
--- Import specific function
-import=require "luapython.import"
--- Then use import
+luapython.load("3.14")
 ```
 
 4. Import python modules in Lua.
 ```lua
-numpy=import"numpy" -- Make sure numpy is installed
+numpy=luapython.import"numpy" -- Make sure numpy is installed
 print(numpy.array({1,2,3}))
-math=import"math"
+
+math=luapython.import"math"
 print(math.tan(90))
 ```
 
 5. Create Python structure by using `dict`, `set`, `list`, `tuple`.
 ```lua
-json=import"json"
-local data = dict{name="Alice", age=18}
+json=luapython.import"json"
+local data = luapython.dict{name="Alice", age=18}
 print(json.dumps(data))
 ```
 
 6. Create a table to adapt keywords parameters.
 ```lua
-OpenAI = import"openai.OpenAI"
+local OpenAI = luapython.import"openai.OpenAI"
 local client = OpenAI({api_key="<DeepSeek API Key>", base_url="https://api.deepseek.com"})
 
 local response = client.chat.completions.create({
@@ -87,5 +78,5 @@ end
 ## TODO
 
 - [ ] Support for Python version above 3.8
-- [ ] Conda support
 - [ ] Integrate Python error in Lua
+- [ ] Conda support

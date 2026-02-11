@@ -1,6 +1,19 @@
--- 1. 加载 C 核心库
 local core = require "luapython.core"
 
+local loadNative = core.loadNative
+
+-- It is not recommanded to call native method straightly
+core.loadNative = nil
+
+function core.load(version)
+    version = version or "3.14"
+    if type(version) == "number" then
+        version = tostring(version)
+    elseif type(version) ~= "string" then
+        error("core.load: version: string expected, got"..type(version))
+    end
+    loadNative(version)
+end
 -- 2. 加载 Lua 编写的 import 包装器
 ---local importer_generator = require "luapython.import"
 
