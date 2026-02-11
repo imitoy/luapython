@@ -26,7 +26,6 @@ int module_tostring(lua_State* L) {
     }
     PyObject* str = PyObject_Str(module);
     pushLua(L, str);
-    Py_XDECREF(module);
     Py_XDECREF(str);
     return 1;
 }

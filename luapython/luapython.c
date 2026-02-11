@@ -1,10 +1,6 @@
 #include "luapython.h"
 #include <dlfcn.h>
 
-#ifndef PYTHON_LIB
-#define PYTHON_LIB "libpython3.13.so"
-#endif
-
 void* dl_addr = NULL;
 
 static int python_import(lua_State* L) {
@@ -90,7 +86,6 @@ int python_tostring(lua_State* L) {
         return 0;
     }
     pushStringLua(L, str);
-    lua_concat(L, 4);
     Py_XDECREF(str);
     return 1;
 }
