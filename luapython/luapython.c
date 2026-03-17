@@ -185,25 +185,10 @@ static int loadPython(lua_State* L){
         luaL_error(L, "luapython has been loaded");
         return 0;
     }
-    const char* version = lua_tostring(L, -1);
-    int len = lua_rawlen(L, -1);
-    // libpython .so
-    char buffer[13+len];
-    const char* str1 = "libpython";
-    const char* str2 = ".so";
-    for(int i = 0; i < 9; i++){
-        buffer[i] = str1[i];
-    }
-    for(int i = 0; i < len; i++){
-        buffer[9+i] = version[i];
-    }
-    for(int i = 0; i < 4; i++){
-        buffer[9+len+i] = str2[i];
-    }
-    const char* name = buffer;
-    dl_addr = dlopen(name, RTLD_LAZY | RTLD_GLOBAL);
+    const char* path = lua_tostring(L, -1);
+    dl_addr = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
     if(!dl_addr){
-        luaL_error(L, "Failed to load %s\n%s", name, dlerror());
+        luaL_error(L, "Failed to load %s\n%s", path, dlerror());
     }
     Py_Initialize();
     return 0;

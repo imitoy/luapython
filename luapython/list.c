@@ -216,4 +216,5 @@ PyObject* convertListPython(lua_State* L, int index) {
         Py_XINCREF(py_list);
         return py_list;
     }
+    return 0;
 }
