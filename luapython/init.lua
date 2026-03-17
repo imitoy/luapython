@@ -25,7 +25,7 @@ function core.load(version, lib_prefix)
         if check_command then
             local handle = io.popen(command)
             local version_info = handle:read()
-            local version_extract = string.match(version_info, "%d%.%d")
+            local version_extract = string.match(version_info, "%d%.%d+")
             if version_extract then
                 version = tonumber(version_extract)
             else
@@ -38,7 +38,10 @@ function core.load(version, lib_prefix)
     elseif type(version) ~= "string" then
         error("core.load: version: string expected, got"..type(version))
     end
-    local path = lib_prefix.."/libpython"..version..".so"
+    if lib_prefix ~= "" then
+        lib_prefix = lib_prefix.."/"
+    end
+    local path = lib_prefix.."libpython"..version..".so"
     loadNative(path)
 end
 -- 2. 加载 Lua 编写的 import 包装器
