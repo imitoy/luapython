@@ -1,9 +1,9 @@
 CXX = gcc
-CXXFLAGS = -I/usr/include/python3.14
+LUA_INCDIR ?= /usr/include
+CXXFLAGS = $(shell python3-config --includes) -I$(LUA_INCDIR)
 LUA_LIBDIR ?= /usr/lib
 LUA_VERSION ?= 5.4
-LDFLAGS = -L$(LUA_LIBDIR) $(shell python-config --ldflags) -lpython3 -llua
-# LD_LIBRARY_PATH = /usr/lib /usr/lib/python3.14/
+LDFLAGS = -L$(LUA_LIBDIR) $(shell python3-config --ldflags)
 
 PREFIX ?= /usr
 

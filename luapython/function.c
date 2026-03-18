@@ -119,6 +119,7 @@ int function_call(lua_State* L) {
     }
 
 normal:
+    ;
     PyObject* args = PyTuple_New(nargs);
     if (!args) {
         luaL_error(L, "function_call: Failed to create argument tuple");

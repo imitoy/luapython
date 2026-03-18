@@ -8,6 +8,10 @@ Create an issue if any bug occurred.
 
 > This project is only supported on Linux temporarily.
 
+## Requirements
+
+Lua, Python & Luarocks installed on your system.
+
 ## Quick start
 
 1. Install Lua and Python. (Latest Lua version recommended)
@@ -16,13 +20,13 @@ Create an issue if any bug occurred.
 ```bash
 git clone https://github.com/imitoy/luapython.git
 cd luapython
-sudo make install # require python headers
-# when uninstall, replace 'install' with 'uninstall
+sudo luarocks make # require python headers
+# when uninstall, run sudo luarocks remove luapython-0.1.3-1.rockspec
 ```
 3. Import this library and load with python version in Lua.
 ```lua
 luapython=require "luapython"
-luapython.load("3.14")
+luapython.load()
 ```
 
 4. Import python modules in Lua.

@@ -283,4 +283,5 @@ PyObject* convertDictPython(lua_State* L, int index) {
         Py_XINCREF(py_dict);
         return py_dict;
     }
+    return 0;
 }
