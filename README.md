@@ -10,7 +10,7 @@ Create an issue if any bug occurred.
 
 ## Requirements
 
-Lua, Python & luarocks installed on your system.
+Lua, Python & Luarocks installed on your system.
 
 ## Quick start
 
@@ -21,12 +21,12 @@ Lua, Python & luarocks installed on your system.
 git clone https://github.com/imitoy/luapython.git
 cd luapython
 sudo luarocks make # require python headers
-# when uninstall, replace 'install' with 'remove'
+# when uninstall, run sudo luarocks remove luapython-0.1.3-1.rockspec
 ```
 3. Import this library and load with python version in Lua.
 ```lua
 luapython=require "luapython"
-luapython.load("3.14")
+luapython.load()
 ```
 
 4. Import python modules in Lua.
