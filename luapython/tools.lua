@@ -52,12 +52,10 @@ function tools.getPythonAdaptFunction(python_function)
     if type(python_function) ~= "function" then
         error("tools.lua: function expected, got " .. type(python_function))
     end
-    local adaptfunction = function(...)
-        local self = select(1, ...)
+    local adaptfunction = function(self, ...)
         local args = { ... }
-        table.remove(args, 1)
         local n = #args
-        return python_function(self, table.unpack(args, 1, n), n)
+        return python_function(self, args, n)
     end
     return adaptfunction
 end

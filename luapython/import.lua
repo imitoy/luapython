@@ -25,6 +25,9 @@ return function(func)
         if module then
             for w in string.gmatch(string.sub(module_name, index + 1) .. ".", "[^%.]+%.") do
                 module = module[string.sub(w, 1, -2)]
+                if not(module) then
+                    error("import.lua: module'" .. module_name .. "' not found")
+                end
             end
         else
             func(module_name, true)

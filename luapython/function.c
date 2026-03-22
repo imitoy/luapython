@@ -8,18 +8,21 @@ int function_call(lua_State* L) {
         return 0;
     }
     int nargs = lua_tonumber(L, -1);
-    int python_func_index = -2 - nargs;
-    if (!isPythonFunction(L, python_func_index)) {
-        luaL_error(L, "function_call: Attempt to call a %s object", luaL_typename(L, python_func_index));
+    if (!isPythonFunction(L, -3)) {
+        luaL_error(L, "function_call: Attempt to call a %s object", luaL_typename(L, -3));
         return 0;
     }
-    PyObject* function = *(PyObject**)lua_touserdata(L, python_func_index);
+    PyObject* function = *(PyObject**)lua_touserdata(L, -3);
     if (!PyCallable_Check(function)) {
         luaL_error(L, "function_call: Attempt to call a %s object", getPythonTypeName(function));
         return 0;
     }
-    if (nargs == 1 && lua_istable(L, -2)) {
-        lua_pushvalue(L, -2);
+    if (nargs == 1) {
+        lua_geti(L, -2, 1);
+        if(!lua_istable(L, -1)){
+            lua_pop(L, 1);
+            goto normal;
+        }
         lua_pushnil(L);
         bool p = true;
         PyObject* inspect = PyImport_ImportModule("inspect");
@@ -71,7 +74,7 @@ int function_call(lua_State* L) {
         Py_XDECREF(inspect);
         lua_pop(L, 1);
         if (p) {
-            lua_pushvalue(L, -2);
+            lua_geti(L, -2, 1);
             lua_pushnil(L);
             lua_Integer len = lua_rawlen(L, -2);
             PyObject* args = PyTuple_New(len);
@@ -125,15 +128,27 @@ normal:
         luaL_error(L, "function_call: Failed to create argument tuple");
         return 0;
     }
-    for (int i = 0; i < nargs; i++) {
-        PyObject* arg = convertPython(L, -2 - i);
+    for (int i = 1; i <= nargs; i++) {
+        lua_geti(L, -2, i);
+        PyObject* arg = convertPython(L, -1);
         if (!arg) {
             luaL_error(L, "function_call: Failed to convert argument %d", i + 1);
             return 0;
         }
-        PyTuple_SetItem(args, i, arg);
+        PyTuple_SetItem(args, i-1, arg);
+        lua_pop(L, 1);
     }
     PyObject* result = PyObject_CallObject(function, args);
+    if(PyTuple_Check(result)){
+        Py_ssize_t size = PyTuple_Size(result);
+        for(Py_ssize_t i = 0; i < size; i++){
+            PyObject* item = PyTuple_GetItem(result, i);
+            pushLua(L, item);
+        }
+        Py_XDECREF(args);
+        Py_XDECREF(result);
+        return size;
+    }
     pushLua(L, result);
     Py_XDECREF(args);
     Py_XDECREF(result);
@@ -159,7 +174,7 @@ int pushFunctionLua(lua_State* L, PyObject* obj) {
         lua_setmetatable(L, -2);
         return 1;
     }
-    lua_createtable(L, 0, 4);
+    lua_createtable(L, 0, 5);
     lua_rawgeti(L, LUA_REGISTRYINDEX, tools_get_python_adapt_function);
     if(lua_isnil(L, -1)){
         loadTools(L);
@@ -173,8 +188,10 @@ int pushFunctionLua(lua_State* L, PyObject* obj) {
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
-    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_pushstring(L, PYTHON_FUNCTION_NAME);
     lua_setfield(L, -2, "__name");
+    lua_pushcfunction(L, python_index);
+    lua_setfield(L, -2, "__index");
     table_function_index = luaL_ref(L, LUA_REGISTRYINDEX);
     return pushFunctionLua(L, obj);
 }

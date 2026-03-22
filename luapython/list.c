@@ -192,7 +192,7 @@ int pushListLua(lua_State* L, PyObject* obj) {
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
-    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_pushstring(L, PYTHON_LIST_NAME);
     lua_setfield(L, -2, "__name");
     table_list_index = luaL_ref(L, LUA_REGISTRYINDEX);
     return pushListLua(L, obj);

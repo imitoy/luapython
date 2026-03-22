@@ -48,7 +48,7 @@ int pushModuleLua(lua_State* L, PyObject* obj) {
     lua_createtable(L, 0, 4);
     lua_pushcfunction(L, module_index);
     lua_setfield(L, -2, "__index");
-    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_pushstring(L, PYTHON_MODULE_NAME);
     lua_setfield(L, -2, "__name");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");

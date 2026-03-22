@@ -57,7 +57,7 @@ int pushIterLua(lua_State* L, PyObject* iter) {
         lua_setmetatable(L, -2);
         return 1;
     }
-    lua_createtable(L, 0, 4);
+    lua_createtable(L, 0, 5);
     lua_rawgeti(L, LUA_REGISTRYINDEX, tools_get_iter_function);
     if(lua_isnil(L, -1)){
         loadTools(L);
@@ -71,12 +71,14 @@ int pushIterLua(lua_State* L, PyObject* iter) {
         return 0;
     }
     lua_setfield(L, -2, "__call");
-    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_pushstring(L, PYTHON_ITER_NAME);
     lua_setfield(L, -2, "__name");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
     lua_pushcfunction(L, python_tostring);
     lua_setfield(L, -2, "__tostring");
+    lua_pushcfunction(L, python_index);
+    lua_setfield(L, -2, "__index");
     table_iter_index = luaL_ref(L, LUA_REGISTRYINDEX);
     return pushIterLua(L, iter);
 }

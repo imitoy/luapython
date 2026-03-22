@@ -855,7 +855,7 @@ int pushNumberLua(lua_State* L, PyObject* obj) {
         lua_setmetatable(L, -2);
         return 1;
     }
-    lua_createtable(L, 0, 22);
+    lua_createtable(L, 0, 23);
     lua_pushcfunction(L, number_add);
     lua_setfield(L, -2, "__add");
     lua_pushcfunction(L, number_sub);
@@ -898,8 +898,10 @@ int pushNumberLua(lua_State* L, PyObject* obj) {
     lua_setfield(L, -2, "__tostring");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
-    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_pushstring(L, PYTHON_NUMBER_NAME);
     lua_setfield(L, -2, "__name");
+    lua_pushcfunction(L, python_index);
+    lua_setfield(L, -2, "__index");
     table_number_index = luaL_ref(L, LUA_REGISTRYINDEX);
     return pushNumberLua(L, obj);
 }

@@ -41,7 +41,7 @@ int pushClassLua(lua_State* L, PyObject* obj) {
     lua_setfield(L, -2, "__index");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
-    lua_pushstring(L, PYTHON_OBJECT_NAME);
+    lua_pushstring(L, PYTHON_CLASS_NAME);
     lua_setfield(L, -2, "__name");
     lua_pushcfunction(L, python_tostring);
     lua_setfield(L, -2, "__tostring");

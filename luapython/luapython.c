@@ -115,13 +115,44 @@ int python_gc(lua_State* L) {
     return 0;
 }
 
+int python_index(lua_State* L) {
+    if (!lua_isuserdata(L, -2)) {
+        luaL_error(L, "python_index: Attempt to index a %s value", luaL_typename(L, -2));
+        return 0;
+    }
+    const char* key = lua_tostring(L, -1);
+    if (!isPythonObject(L, -2)) {
+        luaL_error(L, "python_index: Not a Python object");
+        return 0;
+    }
+    PyObject* obj = *(PyObject**)lua_touserdata(L, -2);
+    if (!PyObject_HasAttrString(obj, key)) {
+        lua_pushnil(L);
+        return 1;
+    }
+    PyObject* attr = PyObject_GetAttrString(obj, key);
+    pushLua(L, attr);
+    Py_XDECREF(attr);
+    return 1;
+}
+
+int python_addr(lua_State* L) {
+    if (!isPythonObject(L, -1)) {
+        luaL_error(L, "python_addr: Not a Python object");
+        return 0;
+    }
+    PyObject* obj = *(PyObject**)lua_touserdata(L, -1);
+    lua_pushfstring(L, "%p", obj);
+    return 1;
+}
+
 bool isPythonObject(lua_State* L, int index) {
     if (lua_getmetatable(L, index) == 1) {
         lua_getfield(L, -1, "__name");
         if (lua_type(L, -1) == LUA_TSTRING) {
             const char* name = lua_tostring(L, -1);
             lua_pop(L, 2);
-            return strcmp(name, PYTHON_OBJECT_NAME) == 0;
+            return strncmp(name, PYTHON_OBJECT_NAME, 6) == 0;
         }
         lua_pop(L, 2);
     }
@@ -131,6 +162,9 @@ bool isPythonObject(lua_State* L, int index) {
 int pushLua(lua_State* L, PyObject* obj) {
     if(obj == NULL || Py_IsNone(obj)) {
         lua_pushnil(L);
+        return 1;
+    }else if (PyBool_Check(obj)) {
+        lua_pushboolean(L, obj == Py_True);
         return 1;
     }else if (PyNumber_Check(obj)) {
         return pushNumberLua(L, obj);
@@ -196,7 +230,7 @@ PyObject* convertPython(lua_State* L, int index) {
 }
 
 int luaopen_luapython_core(lua_State* L) {
-    lua_createtable(L, 0, 9);
+    lua_createtable(L, 0, 10);
     if(luaL_dostring(L, "local lib = require(\"luapython.import\") return lib") != LUA_OK){
         luaL_error(L, "luaopen_luapython_core: Failed to load internal tools");
     }
@@ -226,6 +260,8 @@ int luaopen_luapython_core(lua_State* L) {
     lua_setfield(L, -2, "initialize");
     lua_pushcfunction(L, python_finalize);
     lua_setfield(L, -2, "finalize");
+    lua_pushcfunction(L, python_addr);
+    lua_setfield(L, -2, "addr");
     int d = tools_release_to_env;
     return 1;
 }

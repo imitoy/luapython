@@ -13,6 +13,16 @@
 #endif
 
 #define PYTHON_OBJECT_NAME "python_object"
+#define PYTHON_CLASS_NAME "python_class"
+#define PYTHON_MODULE_NAME "python_module"
+#define PYTHON_FUNCTION_NAME "python_function"
+#define PYTHON_ITER_NAME "python_iter"
+#define PYTHON_SET_NAME "python_set"
+#define PYTHON_DICT_NAME "python_dict"
+#define PYTHON_TUPLE_NAME "python_tuple"
+#define PYTHON_LIST_NAME "python_list"
+#define PYTHON_STRING_NAME "python_string"
+#define PYTHON_NUMBER_NAME "python_number"
 
 #define getPythonTypeName(obj) (PyBytes_AsString(PyUnicode_AsEncodedString(PyObject_GetAttrString((PyObject*)Py_TYPE(obj), "__name__"), "utf-8", "surrogateescape")))
 
@@ -20,6 +30,7 @@ int luaopen_luapython(lua_State* L);
 
 int python_tostring(lua_State* L);
 int python_gc(lua_State* L);
+int python_index(lua_State* L);
 
 bool isPythonObject(lua_State* L, int index);
 
