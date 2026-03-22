@@ -40,6 +40,10 @@ all: $(TARGET)
 $(TARGET): $(OBJECTS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS)
 
+loader:
+	$(CXX) $(CXXFLAGS) -c luapython/loader.c -o loader.o
+	$(CXX) -shared -o loader.so loader.o $(LDFLAGS)
+
 %.o: %.c
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
@@ -50,10 +54,11 @@ clean:
 	rm -rf luapython/*.o
 	rm -f luapython.so
 
-install: $(TARGET)
+install: $(TARGET) loader
 	mkdir -p $(INSTALL_LIBDIR)/luapython
 	mkdir -p $(INSTALL_LUADIR)/luapython
 	cp $(TARGET) $(INSTALL_LIBDIR)/luapython/core.so
+	cp loader.so $(INSTALL_LIBDIR)/luapython/loader.so
 	cp luapython/*.lua $(INSTALL_LUADIR)/luapython
 
 uninstall:
