@@ -1,7 +1,22 @@
 #include "luapython.h"
-#include <dlfcn.h>
 
-void* dl_addr = NULL;
+static int python_initialize(lua_State* L) {
+    if (Py_IsInitialized()) {
+        luaL_error(L, "luapython has been loaded");
+        return 0;
+    }
+    Py_Initialize();
+    return 0;
+}
+
+static int python_finalize(lua_State* L) {
+    if (!Py_IsInitialized()) {
+        luaL_error(L, "luapython has not been loaded");
+        return 0;
+    }
+    Py_Finalize();
+    return 0;
+}
 
 static int python_import(lua_State* L) {
     if(!Py_IsInitialized()){
@@ -180,42 +195,6 @@ PyObject* convertPython(lua_State* L, int index) {
     return NULL;
 }
 
-static int loadPython(lua_State* L){
-    if(dl_addr != NULL){
-        luaL_error(L, "luapython has been loaded");
-        return 0;
-    }
-    const char* path = lua_tostring(L, -1);
-    dl_addr = dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
-    if(!dl_addr){
-        luaL_error(L, "Failed to load %s\n%s", path, dlerror());
-    }
-    Py_Initialize();
-    return 0;
-}
-
-static int isPythonLoaded(lua_State* L){
-    lua_pushboolean(L, dl_addr != NULL);
-    return 1;
-}
-
-static int unloadPython(lua_State* L){
-    // TODO
-    return 0;
-
-    if(!dl_addr){
-        luaL_error(L, "luapython has not been loaded. You may load luapython first by calling luapython.load(<python_version>).");
-        return 0;
-    }
-    Py_Finalize();
-    int ret = dlclose(dl_addr);
-    if(!ret){
-        luaL_error(L, "unloadPython: dlclose error. \n%s", dlerror());
-        return 0;
-    }
-    return 0;
-}
-
 int luaopen_luapython_core(lua_State* L) {
     lua_createtable(L, 0, 9);
     if(luaL_dostring(L, "local lib = require(\"luapython.import\") return lib") != LUA_OK){
@@ -243,10 +222,10 @@ int luaopen_luapython_core(lua_State* L) {
         lua_rawgeti(L, LUA_REGISTRYINDEX, tools_release_to_env);
     }
     lua_setfield(L, -2, "init");
-    lua_pushcfunction(L, loadPython);
-    lua_setfield(L, -2, "loadNative");
-    lua_pushcfunction(L, isPythonLoaded);
-    lua_setfield(L, -2, "isLoaded");
+    lua_pushcfunction(L, python_initialize);
+    lua_setfield(L, -2, "initialize");
+    lua_pushcfunction(L, python_finalize);
+    lua_setfield(L, -2, "finalize");
     int d = tools_release_to_env;
     return 1;
 }
