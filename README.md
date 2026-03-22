@@ -21,7 +21,7 @@ Lua, Python & Luarocks installed on your system.
 git clone https://github.com/imitoy/luapython.git
 cd luapython
 sudo luarocks make # require python headers
-# when uninstall, run sudo luarocks remove luapython.rockspec
+# when uninstall, run sudo luarocks remove luapython
 ```
 3. Import this library and load with python version in Lua.
 ```lua
