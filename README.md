@@ -21,7 +21,7 @@ Lua, Python & Luarocks installed on your system.
 git clone https://github.com/imitoy/luapython.git
 cd luapython
 sudo luarocks make # require python headers
-# when uninstall, run sudo luarocks remove luapython-0.1.3-1.rockspec
+# when uninstall, run sudo luarocks remove luapython.rockspec
 ```
 3. Import this library and load with python version in Lua.
 ```lua
@@ -79,8 +79,23 @@ for chunk in response() do
 end
 ```
 
+## Use in a virtual env (Conda recommended)
+1. Activate virtual env & check `python3-config --exec-prefix`.
+```bash
+conda activate v_env
+python3-config --exec-prefix
+```
+
+2. Call the function load().
+```lua
+local luapython = require"luapython"
+local path = luapython.load(3.14, "/path_to_v_env/lib")
+-- or luapython.load()                             -- will find libpython automatically
+-- or luapython.loadNative("/path_to_libpython.so") --will load lib directly
+```
+
 ## TODO
 
 - [x] Support for Python version above 3.8
 - [ ] Integrate Python error in Lua
-- [ ] Conda support
+- [x] Conda support
