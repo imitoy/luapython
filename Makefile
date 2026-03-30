@@ -35,7 +35,7 @@ SOURCES = \
 
 OBJECTS = $(SOURCES:.c=.o)
 
-all: $(TARGET)
+all: $(TARGET) loader
 
 $(TARGET): $(OBJECTS)
 	$(CXX) -shared -o $@ $^ $(LDFLAGS)
@@ -54,7 +54,7 @@ clean:
 	rm -rf luapython/*.o
 	rm -f luapython.so
 
-install: $(TARGET) loader
+install: $(TARGET)
 	mkdir -p $(INSTALL_LIBDIR)/luapython
 	mkdir -p $(INSTALL_LUADIR)/luapython
 	cp $(TARGET) $(INSTALL_LIBDIR)/luapython/core.so
