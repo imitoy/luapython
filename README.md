@@ -101,5 +101,5 @@ local path = luapython.load(3.14, "/path_to_v_env/lib")
 - [ ] Integrate Python error in Lua
 - [ ] Support for Lua5.5
 
-# Bugs knowed
+## Bugs knowed
 - [ ] Memory leak
