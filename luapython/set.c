@@ -12,7 +12,9 @@ int set_len(lua_State* L) {
         return 1;
     }
     PyObject* py_set = *(PyObject**)lua_touserdata(L, -1);
+    Py_XINCREF(py_set);
     Py_ssize_t len = PySet_Size(py_set);
+    Py_XDECREF(py_set);
     lua_pushinteger(L, len);
     return 1;
 }
@@ -55,14 +57,12 @@ int set_add(lua_State* L) {
         Py_XINCREF(py_set2);
     }
     if (!py_set1 || !py_set2) {
-        if (py_set1)
-            Py_XDECREF(py_set1);
-        if (py_set2)
-            Py_XDECREF(py_set2);
+        Py_XDECREF(py_set1);
+        Py_XDECREF(py_set2);
         luaL_error(L, "set_add: Failed to create Python sets");
         return 0;
     }
-    PyObject* result = PySet_Add(py_set1, py_set2);
+    PyObject* result = PyNumber_Or(py_set1, py_set2);
     Py_XDECREF(py_set1);
     Py_XDECREF(py_set2);
     if (!result) {
@@ -70,48 +70,12 @@ int set_add(lua_State* L) {
         return 0;
     }
     pushSetLua(L, result);
-    Py_XDECREF(result);
     return 1;
 }
 
 int set_mul(lua_State* L) {
-    if (!(lua_istable(L, -1) || isPythonSet(L, -1)) || !(lua_istable(L, -2) || isPythonSet(L, -2))) {
-        luaL_error(L, "set_mul: Attempt to perform intersection on %s and %s", luaL_typename(L, -2),
-                   luaL_typename(L, -1));
-        return 0;
-    }
-    PyObject* py_set1 = NULL;
-    PyObject* py_set2 = NULL;
-    if (lua_istable(L, -1)) {
-        py_set1 = convertPython(L, -1);
-    } else {
-        py_set1 = *(PyObject**)lua_touserdata(L, -1);
-        Py_XINCREF(py_set1);
-    }
-    if (lua_istable(L, -2)) {
-        py_set2 = convertPython(L, -2);
-    } else {
-        py_set2 = *(PyObject**)lua_touserdata(L, -2);
-        Py_XINCREF(py_set2);
-    }
-    if (!py_set1 || !py_set2) {
-        if (py_set1)
-            Py_XDECREF(py_set1);
-        if (py_set2)
-            Py_XDECREF(py_set2);
-        luaL_error(L, "set_mul: Failed to create Python sets");
-        return 0;
-    }
-    PyObject* result = PyNumber_And(py_set1, py_set2);
-    Py_XDECREF(py_set1);
-    Py_XDECREF(py_set2);
-    if (!result) {
-        luaL_error(L, "set_mul: Python set intersection failed");
-        return 0;
-    }
-    pushSetLua(L, result);
-    Py_XDECREF(result);
-    return 1;
+    luaL_error(L, "set_mul: Set objects do not support intersection");
+    return 0;
 }
 
 int set_sub(lua_State* L) {
@@ -135,10 +99,8 @@ int set_sub(lua_State* L) {
         Py_XINCREF(py_set2);
     }
     if (!py_set1 || !py_set2) {
-        if (py_set1)
-            Py_XDECREF(py_set1);
-        if (py_set2)
-            Py_XDECREF(py_set2);
+        Py_XDECREF(py_set1);
+        Py_XDECREF(py_set2);
         luaL_error(L, "set_sub: Failed to create Python sets");
         return 0;
     }
@@ -150,13 +112,12 @@ int set_sub(lua_State* L) {
         return 0;
     }
     pushSetLua(L, result);
-    Py_XDECREF(result);
     return 1;
 }
 
-int set_bxor(lua_State* L) {
+int set_band(lua_State* L) {
     if (!(lua_istable(L, -1) || isPythonSet(L, -1)) || !(lua_istable(L, -2) || isPythonSet(L, -2))) {
-        luaL_error(L, "set_bxor: Attempt to perform symmetric difference on %s and %s", luaL_typename(L, -2),
+        luaL_error(L, "set_band: Attempt to perform symmetric difference on %s and %s", luaL_typename(L, -2),
                    luaL_typename(L, -1));
         return 0;
     }
@@ -175,22 +136,19 @@ int set_bxor(lua_State* L) {
         Py_XINCREF(py_set2);
     }
     if (!py_set1 || !py_set2) {
-        if (py_set1)
-            Py_XDECREF(py_set1);
-        if (py_set2)
-            Py_XDECREF(py_set2);
-        luaL_error(L, "set_bxor: Failed to create Python sets");
+        Py_XDECREF(py_set1);
+        Py_XDECREF(py_set2);
+        luaL_error(L, "set_band: Failed to create Python sets");
         return 0;
     }
-    PyObject* result = PyNumber_Xor(py_set1, py_set2);
+    PyObject* result = PyNumber_And(py_set1, py_set2);
     Py_XDECREF(py_set1);
     Py_XDECREF(py_set2);
     if (!result) {
-        luaL_error(L, "set_bxor: Python set symmetric difference failed");
+        luaL_error(L, "set_band: Python set symmetric difference failed");
         return 0;
     }
     pushSetLua(L, result);
-    Py_XDECREF(result);
     return 1;
 }
 
