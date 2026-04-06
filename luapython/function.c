@@ -139,6 +139,14 @@ normal:
         lua_pop(L, 1);
     }
     PyObject* result = PyObject_CallObject(function, args);
+    Py_XDECREF(function);
+    if (PyErr_Occurred()) {
+        PyErr_Print();
+        Py_XDECREF(args);
+        Py_XDECREF(result);
+        luaL_error(L, "function_call: Error calling function");
+        return 0;
+    }
     if(PyTuple_Check(result)){
         Py_ssize_t size = PyTuple_Size(result);
         for(Py_ssize_t i = 0; i < size; i++){
