@@ -12,7 +12,9 @@ int tuple_len(lua_State* L) {
         return 1;
     }
     PyObject* py_tuple = *(PyObject**)lua_touserdata(L, -1);
+    Py_XINCREF(py_tuple);
     Py_ssize_t len = PyTuple_Size(py_tuple);
+    Py_XDECREF(py_tuple);
     lua_pushinteger(L, len);
     return 1;
 }
@@ -27,14 +29,17 @@ int tuple_index(lua_State* L) {
         return 1;
     }
     PyObject* py_tuple = *(PyObject**)lua_touserdata(L, -2);
+    Py_XINCREF(py_tuple);
     long index = luaL_checkinteger(L, -1);
     Py_ssize_t py_index = index - 1;
     Py_ssize_t size = PyTuple_Size(py_tuple);
     if (py_index < 0 || py_index >= size) {
+        Py_XDECREF(py_tuple);
         lua_pushnil(L);
         return 1;
     }
     PyObject* py_value = PyTuple_GetItem(py_tuple, py_index);
+    Py_XDECREF(py_tuple);
     pushLua(L, py_value);
     return 1;
 }
@@ -49,7 +54,6 @@ int pushTupleLua(lua_State* L, PyObject* obj) {
     if (table_tuple_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_tuple_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushClassLua: Internal error, class index is not a table");

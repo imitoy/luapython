@@ -27,18 +27,17 @@ static int python_import(lua_State* L) {
         return 0;
     }
     const char* module_name = lua_tostring(L, -2);
-    PyObject* module = PyImport_Import(PyUnicode_FromString(module_name));
+    PyObject* module = PyImport_ImportModule(module_name);
     if (module == NULL) {
-        bool b = PyErr_Occurred();
         if (lua_toboolean(L, -1)) {
             PyErr_Print();
         } else {
             PyErr_Clear();
         }
+        Py_XDECREF(module);
         return 0;
     }
     pushLua(L, module);
-    Py_XDECREF(module);
     return 1;
 }
 
@@ -48,7 +47,6 @@ static int python_set(lua_State* L) {
     }
     PyObject* set = convertSetPython(L, -1);
     pushSetLua(L, set);
-    Py_XDECREF(set);
     return 1;
 }
 
@@ -58,7 +56,6 @@ static int python_dict(lua_State* L) {
     }
     PyObject* dict = convertDictPython(L, -1);
     pushDictLua(L, dict);
-    Py_XDECREF(dict);
     return 1;
 }
 
@@ -68,7 +65,6 @@ static int python_tuple(lua_State* L) {
     }
     PyObject* tuple = convertTuplePython(L, -1);
     pushTupleLua(L, tuple);
-    Py_XDECREF(tuple);
     return 1;
 }
 
@@ -78,7 +74,6 @@ static int python_list(lua_State* L) {
     }
     PyObject* list = convertListPython(L, -1);
     pushListLua(L, list);
-    Py_XDECREF(list);
     return 1;
 }
 
@@ -88,11 +83,14 @@ int python_tostring(lua_State* L) {
         return 0;
     }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -1);
+    Py_XINCREF(obj);
     if(Py_IsNone(obj)){
         lua_pushnil(L);
+        Py_XDECREF(obj);
         return 1;
     }
     PyObject* str = PyObject_Str(obj);
+    Py_XDECREF(obj);
     if(PyErr_Occurred()){
         PyErr_Print();
     }
@@ -101,7 +99,6 @@ int python_tostring(lua_State* L) {
         return 0;
     }
     pushStringLua(L, str);
-    Py_XDECREF(str);
     return 1;
 }
 
@@ -126,13 +123,15 @@ int python_index(lua_State* L) {
         return 0;
     }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -2);
+    Py_XINCREF(obj);
     if (!PyObject_HasAttrString(obj, key)) {
         lua_pushnil(L);
+        Py_XDECREF(obj);
         return 1;
     }
     PyObject* attr = PyObject_GetAttrString(obj, key);
+    Py_XDECREF(obj);
     pushLua(L, attr);
-    Py_XDECREF(attr);
     return 1;
 }
 
@@ -146,7 +145,7 @@ int python_addr(lua_State* L) {
     return 1;
 }
 
-bool isPythonObject(lua_State* L, int index) {
+int isPythonObject(lua_State* L, int index) {
     if (lua_getmetatable(L, index) == 1) {
         lua_getfield(L, -1, "__name");
         if (lua_type(L, -1) == LUA_TSTRING) {
@@ -156,7 +155,7 @@ bool isPythonObject(lua_State* L, int index) {
         }
         lua_pop(L, 2);
     }
-    return false;
+    return 0;
 }
 
 int pushLua(lua_State* L, PyObject* obj) {
@@ -199,7 +198,9 @@ PyObject* convertPython(lua_State* L, int index) {
     } else if (lua_type(L, index) == LUA_TNUMBER) {
         return convertNumberPython(L, index);
     } else if (lua_isboolean(L, index)) {
-        return lua_toboolean(L, index) ? Py_True : Py_False;
+        PyObject* py_bool = lua_toboolean(L, index) ? Py_True : Py_False;
+        Py_XINCREF(py_bool);
+        return py_bool;
     } else if (lua_isnil(L, index)) {
         Py_XINCREF(Py_None);
         return Py_None;
@@ -216,7 +217,7 @@ PyObject* convertPython(lua_State* L, int index) {
             return NULL;
         }
         PyObject* pyobject = NULL;
-        bool is_dict = lua_toboolean(L, -1);
+        int is_dict = lua_toboolean(L, -1);
         lua_pop(L, 1);
         if (is_dict) {
             pyobject = convertDictPython(L, index);

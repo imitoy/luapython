@@ -28,10 +28,8 @@ int string_concat(lua_State* L) {
         Py_XINCREF(py_str2);
     }
     if (!py_str1 || !py_str2) {
-        if (py_str1)
-            Py_XDECREF(py_str1);
-        if (py_str2)
-            Py_XDECREF(py_str2);
+        Py_XDECREF(py_str1);
+        Py_XDECREF(py_str2);
         luaL_error(L, "string_concat: Failed to create Python strings");
         return 0;
     }
@@ -43,7 +41,6 @@ int string_concat(lua_State* L) {
         return 0;
     }
     pushStringLua(L, result);
-    Py_XDECREF(result);
     return 1;
 }
 
@@ -59,7 +56,9 @@ int string_len(lua_State* L) {
         return 1;
     }
     PyObject* py_str = *(PyObject**)lua_touserdata(L, -1);
+    Py_XINCREF(py_str);
     Py_ssize_t len = PyUnicode_GetLength(py_str);
+    Py_XDECREF(py_str);
     lua_pushinteger(L, len);
     return 1;
 }
@@ -91,10 +90,8 @@ int string_eq(lua_State* L) {
         Py_XINCREF(py_str2);
     }
     if (!py_str1 || !py_str2) {
-        if (py_str1)
-            Py_XDECREF(py_str1);
-        if (py_str2)
-            Py_XDECREF(py_str2);
+        Py_XDECREF(py_str1);
+        Py_XDECREF(py_str2);
         luaL_error(L, "string_len: Failed to create Python strings");
         return 0;
     }
@@ -131,10 +128,8 @@ int string_lt(lua_State* L) {
         Py_XINCREF(py_str2);
     }
     if (!py_str1 || !py_str2) {
-        if (py_str1)
-            Py_XDECREF(py_str1);
-        if (py_str2)
-            Py_XDECREF(py_str2);
+        Py_XDECREF(py_str1);
+        Py_XDECREF(py_str2);
         luaL_error(L, "string_lt: Failed to create Python strings");
         return 0;
     }
@@ -171,10 +166,8 @@ int string_le(lua_State* L) {
         Py_XINCREF(py_str2);
     }
     if (!py_str1 || !py_str2) {
-        if (py_str1)
-            Py_XDECREF(py_str1);
-        if (py_str2)
-            Py_XDECREF(py_str2);
+        Py_XDECREF(py_str1);
+        Py_XDECREF(py_str2);
         luaL_error(L, "string_le: Failed to create Python strings");
         return 0;
     }
@@ -196,7 +189,10 @@ int string_tostring(lua_State* L) {
         return 1;
     }
     PyObject* py_str = *(PyObject**)lua_touserdata(L, -1);
-    return pushStringLua(L, py_str);
+    Py_XINCREF(py_str);
+    pushStringLua(L, py_str);
+    Py_XDECREF(py_str);
+    return 1;
 }
 
 int string_mul(lua_State* L) {
@@ -225,17 +221,18 @@ int string_mul(lua_State* L) {
     PyObject* py_str = *(PyObject**)lua_touserdata(L, -2);
     PyObject* py_count = PyLong_FromLong(count);
     if (!py_count) {
+        Py_XDECREF(py_str);
         luaL_error(L, "string_mul: Failed to create Python integer");
         return 0;
     }
     PyObject* result = PyNumber_Multiply(py_str, py_count);
     Py_XDECREF(py_count);
+    Py_XDECREF(py_str);
     if (!result) {
         luaL_error(L, "string_mul: Python string repetition failed");
         return 0;
     }
     pushStringLua(L, result);
-    Py_XDECREF(result);
     return 1;
 }
 
@@ -257,7 +254,6 @@ int pushStringLua(lua_State* L, PyObject* obj) {
     if (table_string_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_string_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushStringLua: Internal error, class index is not a table");

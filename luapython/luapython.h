@@ -4,7 +4,6 @@
 #include <lua.h>
 #include <lauxlib.h>
 #include <lualib.h>
-#include <stdbool.h>
 
 #include "tools.h"
 
@@ -32,7 +31,7 @@ int python_tostring(lua_State* L);
 int python_gc(lua_State* L);
 int python_index(lua_State* L);
 
-bool isPythonObject(lua_State* L, int index);
+int isPythonObject(lua_State* L, int index);
 
 int pushNumberLua(lua_State* L, PyObject* number);
 int pushStringLua(lua_State* L, PyObject* string);

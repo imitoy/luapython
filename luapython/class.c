@@ -11,13 +11,14 @@ int class_index(lua_State* L) {
         return 0;
     }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -2);
+    Py_XINCREF(obj);
     if (!PyObject_HasAttrString(obj, lua_tostring(L, -1))) {
         lua_pushnil(L);
         return 1;
     }
     PyObject* attr = PyObject_GetAttrString(obj, key);
+    Py_DECREF(obj);
     pushLua(L, attr);
-    Py_XDECREF(attr);
     return 1;
 }
 
@@ -27,7 +28,6 @@ int pushClassLua(lua_State* L, PyObject* obj) {
     if (table_class_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_class_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushClassLua: Internal error, class index is not a table");

@@ -90,8 +90,8 @@ python3-config --exec-prefix
 ```lua
 local luapython = require"luapython"
 local path = luapython.load(3.14, "/path_to_v_env/lib")
--- or luapython.load()                             -- will find libpython automatically
--- or luapython.loadNative("/path_to_libpython.so") --will load lib directly
+-- or luapython.load()                              -- will find libpython automatically
+-- or luapython.loadNative("/path_to_libpython.so") -- will load lib directly
 ```
 
 ## TODO

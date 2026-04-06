@@ -12,7 +12,9 @@ int dict_len(lua_State* L) {
         return 1;
     }
     PyObject* py_dict = *(PyObject**)lua_touserdata(L, -1);
+    Py_XINCREF(py_dict);
     Py_ssize_t len = PyDict_Size(py_dict);
+    Py_XDECREF(py_dict);
     lua_pushinteger(L, len);
     return 1;
 }
@@ -23,17 +25,20 @@ int dict_index(lua_State* L) {
         return 0;
     }
     PyObject* py_dict = *(PyObject**)lua_touserdata(L, -2);
+    Py_XINCREF(py_dict);
     PyObject* py_key = convertPython(L, -1);
     if (!py_key) {
         luaL_error(L, "dict_index: Invalid key type for dictionary access");
         return 0;
     }
     PyObject* py_value = PyDict_GetItem(py_dict, py_key);
+    Py_XDECREF(py_dict);
     Py_XDECREF(py_key);
     if (!py_value) {
         lua_pushnil(L);
         return 1;
     }
+    Py_XINCREF(py_value);
     pushLua(L, py_value);
     return 1;
 }
@@ -44,9 +49,11 @@ int dict_newindex(lua_State* L) {
         return 0;
     }
     PyObject* py_dict = *(PyObject**)lua_touserdata(L, -3);
+    Py_XINCREF(py_dict);
     PyObject* py_key = convertPython(L, -2);
     PyObject* py_value = convertPython(L, -1);
     if (!py_key || !py_value) {
+        Py_XDECREF(py_dict);
         if (py_key)
             Py_XDECREF(py_key);
         if (py_value)
@@ -55,6 +62,7 @@ int dict_newindex(lua_State* L) {
         return 0;
     }
     int result = PyDict_SetItem(py_dict, py_key, py_value);
+    Py_XDECREF(py_dict);
     Py_XDECREF(py_key);
     Py_XDECREF(py_value);
     if (result < 0) {
@@ -106,7 +114,6 @@ int dict_add(lua_State* L) {
     Py_XDECREF(py_dict1);
     Py_XDECREF(py_dict2);
     pushDictLua(L, result);
-    Py_XDECREF(result);
     return 1;
 }
 
@@ -155,7 +162,6 @@ int dict_mul(lua_State* L) {
     Py_XDECREF(py_dict1);
     Py_XDECREF(py_dict2);
     pushDictLua(L, result);
-    Py_XDECREF(result);
     return 1;
 }
 
@@ -204,7 +210,6 @@ int dict_sub(lua_State* L) {
     Py_XDECREF(py_dict1);
     Py_XDECREF(py_dict2);
     pushDictLua(L, result);
-    Py_XDECREF(result);
     return 1;
 }
 
@@ -218,7 +223,6 @@ int pushDictLua(lua_State* L, PyObject* obj) {
     if (table_dict_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_dict_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushDictLua: Internal error, class index is not a table");

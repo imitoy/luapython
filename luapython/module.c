@@ -8,25 +8,27 @@ int module_index(lua_State* L) {
     const char* key = lua_tostring(L, -1);
     PyObject* module = convertPython(L, -2);
     PyObject* value = PyObject_GetAttrString(module, key);
+    Py_XDECREF(module);
     if (value == NULL) {
+        Py_XDECREF(value);
         luaL_error(L, "module_index: Attribute %s not found in module %s", key, getPythonTypeName(value));
         return 0;
     }
     pushLua(L, value);
-    Py_XDECREF(module);
-    Py_XDECREF(value);
     return 1;
 }
 
 int module_tostring(lua_State* L) {
     PyObject* module = *(PyObject**)lua_touserdata(L, -1);
+    Py_XINCREF(module);
     if (!module) {
+        Py_XDECREF(module);
         luaL_error(L, "module_tostring: Invalid Python module");
         return 0;
     }
     PyObject* str = PyObject_Str(module);
+    Py_XDECREF(module);
     pushLua(L, str);
-    Py_XDECREF(str);
     return 1;
 }
 
@@ -36,7 +38,6 @@ int pushModuleLua(lua_State* L, PyObject* obj) {
     if (table_module_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_module_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushModuleLua: Internal error, class index is a %s", luaL_typename(L, -1));

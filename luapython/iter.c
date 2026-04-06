@@ -10,12 +10,15 @@ int lua_iter(lua_State* L){
         return 0;
     }
     PyObject* iter = *(PyObject**)lua_touserdata(L, -2);
+    Py_XINCREF(iter);
     if(PyErr_Occurred()){
         PyErr_Print();
+        Py_XDECREF(iter);
         luaL_error(L, "lua_iter: Failed to get iterator");
         return 0;
     }
     PyObject* next = PyIter_Next(iter);
+    Py_XDECREF(iter);
     if(PyErr_Occurred()){
         PyErr_Clear();
     }
@@ -24,7 +27,6 @@ int lua_iter(lua_State* L){
         return 1;
     }
     pushLua(L, next);
-    Py_XDECREF(next);
     return 1;
 }
 
@@ -34,13 +36,14 @@ int lua_getiter(lua_State* L){
         return 0;
     }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -1);
+    Py_XINCREF(obj);
     PyObject* iter = PyObject_GetIter(obj);
+    Py_XDECREF(obj);
     if(!iter) {
         lua_pushnil(L);
         return 1;
     }
     pushClassLua(L, iter);
-    Py_XDECREF(iter);
     return 1;
 }
 
@@ -48,7 +51,6 @@ int pushIterLua(lua_State* L, PyObject* iter) {
     if(table_iter_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = iter;
-        Py_XINCREF(iter);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_iter_index);
         if(!lua_istable(L, -1)) {
             luaL_error(L, "pushIterLua: Internal error, class index is not a table");

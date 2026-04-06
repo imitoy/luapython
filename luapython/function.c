@@ -13,7 +13,9 @@ int function_call(lua_State* L) {
         return 0;
     }
     PyObject* function = *(PyObject**)lua_touserdata(L, -3);
+    Py_XINCREF(function);
     if (!PyCallable_Check(function)) {
+        Py_XDECREF(function);
         luaL_error(L, "function_call: Attempt to call a %s object", getPythonTypeName(function));
         return 0;
     }
@@ -45,6 +47,8 @@ int function_call(lua_State* L) {
             Py_XDECREF(signature_of_function);
             Py_XDECREF(signature);
             Py_XDECREF(inspect);
+            lua_pop(L, 2);
+            Py_XDECREF(function);
             luaL_error(L, "function_call: Failed to import inspect module");
             return 0;
         }
@@ -99,6 +103,10 @@ int function_call(lua_State* L) {
                 PyObject* arg = convertPython(L, -1);
                 lua_pop(L, 2);
                 if (!arg) {
+                    Py_XDECREF(args);
+                    Py_XDECREF(kwargs);
+                    Py_XDECREF(arg);
+                    Py_XDECREF(function);
                     luaL_error(L, "function_call: Failed to convert argument %d", i + 1);
                     return 0;
                 }
@@ -108,14 +116,17 @@ int function_call(lua_State* L) {
             PyObject* result = PyObject_Call(function, args, kwargs);
             if (PyErr_Occurred()) {
                 PyErr_Print();
-                luaL_error(L, "function_call: Error calling function");
                 Py_XDECREF(args);
                 Py_XDECREF(kwargs);
+                Py_XDECREF(result);
+                Py_XDECREF(function);
+                luaL_error(L, "function_call: Error calling function");
                 return 0;
             }
-            pushLua(L, result);
             Py_XDECREF(args);
-            Py_XDECREF(result);
+            Py_XDECREF(kwargs);
+            Py_XDECREF(function);
+            pushLua(L, result);
             return 1;
         }
         lua_pop(L, 1);
@@ -125,6 +136,8 @@ normal:
     ;
     PyObject* args = PyTuple_New(nargs);
     if (!args) {
+        Py_XDECREF(args);
+        Py_XDECREF(function);
         luaL_error(L, "function_call: Failed to create argument tuple");
         return 0;
     }
@@ -132,6 +145,8 @@ normal:
         lua_geti(L, -2, i);
         PyObject* arg = convertPython(L, -1);
         if (!arg) {
+            Py_XDECREF(args);
+            Py_XDECREF(function);
             luaL_error(L, "function_call: Failed to convert argument %d", i + 1);
             return 0;
         }
@@ -139,10 +154,10 @@ normal:
         lua_pop(L, 1);
     }
     PyObject* result = PyObject_CallObject(function, args);
+    Py_XDECREF(args);
     Py_XDECREF(function);
     if (PyErr_Occurred()) {
         PyErr_Print();
-        Py_XDECREF(args);
         Py_XDECREF(result);
         luaL_error(L, "function_call: Error calling function");
         return 0;
@@ -151,15 +166,13 @@ normal:
         Py_ssize_t size = PyTuple_Size(result);
         for(Py_ssize_t i = 0; i < size; i++){
             PyObject* item = PyTuple_GetItem(result, i);
+            Py_XINCREF(item);
             pushLua(L, item);
         }
-        Py_XDECREF(args);
         Py_XDECREF(result);
         return size;
     }
     pushLua(L, result);
-    Py_XDECREF(args);
-    Py_XDECREF(result);
     return 1;
 }
 
@@ -173,7 +186,6 @@ int pushFunctionLua(lua_State* L, PyObject* obj) {
     if (table_function_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_function_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushFunctionLua: Internal error, class index is not a table");

@@ -12,6 +12,7 @@ int luapython_astable(lua_State* L) {
         return 0;
     }
     PyObject* obj = *(PyObject**)lua_touserdata(L, -1);
+    Py_XINCREF(obj);
     PyObject* iter = PyObject_GetIter(obj);
     if(PyErr_Occurred()) {
         PyErr_Clear();
@@ -23,18 +24,23 @@ int luapython_astable(lua_State* L) {
         while((item = PyIter_Next(iter)) != NULL) {
             pushLua(L, item);
             lua_rawseti(L, -2, index++);
-            Py_XDECREF(item);
         }
+        Py_XDECREF(iter);
+        Py_XDECREF(obj);
         return 1;
     }
+    Py_XDECREF(iter);
     PyObject* dir = PyObject_Dir(obj);
     if(PyErr_Occurred()) {
         PyErr_Print();
+        Py_XDECREF(dir);
+        Py_XDECREF(obj);
         luaL_error(L, "luapython_astable: Failed to get attributes of Python object");
         return 0;
     }
     if(!PyList_Check(dir)) {
         Py_XDECREF(dir);
+        Py_XDECREF(obj);
         luaL_error(L, "luapython_astable: Internal error, PyObject_Dir did not return a list");
         return 0;
     }
@@ -42,32 +48,32 @@ int luapython_astable(lua_State* L) {
     lua_createtable(L, 0, (int)size);
     for(Py_ssize_t index = 0; index < size; index++) {
         PyObject* item = PyList_GetItem(dir, index);
+        Py_XINCREF(item);
         if(!PyUnicode_Check(item)) {
+            Py_XDECREF(item);
             continue;
         }
         PyObject* bytes = PyUnicode_AsEncodedString(item, "utf-8", "surrogateescape");
         const char* key = PyBytes_AsString(bytes);
+        Py_XDECREF(bytes);
         if(key == NULL) {
             PyErr_Print();
-            luaL_error(L, "luapython_astable: Failed to convert attribute name to UTF-8");
             Py_XDECREF(dir);
+            Py_XDECREF(obj);
+            luaL_error(L, "luapython_astable: Failed to convert attribute name to UTF-8");
             return 0;
         }
         PyObject* value = PyObject_GetAttr(obj, item);
+        Py_XDECREF(item);
         if(value == NULL) {
             PyErr_Clear();
             continue;
         }
-        int ret = pushLua(L, value);
-        Py_XDECREF(value);
-        if(ret != 1) {
-            luaL_error(L, "luapython_astable: Failed to push attribute value to Lua stack");
-            Py_XDECREF(dir);
-            return 0;
-        }
+        pushLua(L, value);
         lua_setfield(L, -2, key);
     }
     Py_XDECREF(dir);
+    Py_XDECREF(obj);
     return 1;
 }
 

@@ -1,5 +1,5 @@
 package = "luapython"
-version = "0.1.4-1"
+version = "0.1.4-2"
 source = {
 	url = "git+https://github.com/imitoy/luapython.git",
 }
@@ -13,7 +13,7 @@ C module and Lua helpers]],
 
 rockspec_format = "3.0"
 dependencies = {
-	"lua >= 5.1, <= 5.4",
+	"lua >= 5.1, <= 5.5",
 }
 build = {
 	type = "make",

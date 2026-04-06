@@ -162,7 +162,6 @@ int pushSetLua(lua_State* L, PyObject* obj) {
     if (table_set_index != 0) {
         void* point = lua_newuserdata(L, sizeof(PyObject*));
         *(PyObject**)point = obj;
-        Py_XINCREF(obj);
         lua_rawgeti(L, LUA_REGISTRYINDEX, table_set_index);
         if (!lua_istable(L, -1)) {
             luaL_error(L, "pushSetLua: Internal error, class index is not a table");
@@ -196,7 +195,9 @@ int pushSetLua(lua_State* L, PyObject* obj) {
 
 PyObject* convertSetPython(lua_State* L, int index) {
     if (lua_istable(L, index)) {
-        PyObject* py_set = PySet_New(convertListPython(L, index));
+        PyObject* list = convertListPython(L, index);
+        PyObject* py_set = PySet_New(list);
+        Py_XDECREF(list);
         return py_set;
     } else if (isPythonSet(L, index)) {
         PyObject* py_set = *(PyObject**)lua_touserdata(L, index);
