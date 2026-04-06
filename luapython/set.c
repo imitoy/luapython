@@ -62,7 +62,7 @@ int set_add(lua_State* L) {
         luaL_error(L, "set_add: Failed to create Python sets");
         return 0;
     }
-    PyObject* result = PyNumber_Or(py_set1, py_set2);
+    PyObject* result = PySet_Add(py_set1, py_set2);
     Py_XDECREF(py_set1);
     Py_XDECREF(py_set2);
     if (!result) {
