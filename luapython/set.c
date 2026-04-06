@@ -178,8 +178,8 @@ int pushSetLua(lua_State* L, PyObject* obj) {
     lua_setfield(L, -2, "__mul");
     lua_pushcfunction(L, set_sub);
     lua_setfield(L, -2, "__sub");
-    lua_pushcfunction(L, set_bxor);
-    lua_setfield(L, -2, "__bxor");
+    lua_pushcfunction(L, set_band);
+    lua_setfield(L, -2, "__band");
     lua_pushcfunction(L, set_index);
     lua_setfield(L, -2, "__index");
     lua_pushcfunction(L, set_newindex);
