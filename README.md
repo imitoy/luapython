@@ -97,9 +97,6 @@ local path = luapython.load(3.14, "/path_to_v_env/lib")
 ## TODO
 
 - [x] Support for Python version above 3.8
+- [x] Support for Lua5.5
 - [x] Conda support
 - [ ] Integrate Python error in Lua
-- [ ] Support for Lua5.5
-
-## Bugs knowed
-- [ ] Memory leak

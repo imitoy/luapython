@@ -1,5 +1,5 @@
 package = "luapython"
-version = "0.1.4-2"
+version = "0.1.5-1"
 source = {
 	url = "git+https://github.com/imitoy/luapython.git",
 }
@@ -19,9 +19,7 @@ build = {
 	type = "make",
 	build_variables = {
 		LUA_VERSION = "$(LUA_VERSION)",
-		--LUA_LIBDIR = "$(LIBDIR)",
 		LUA_INCDIR = "$(LUA_INCDIR)",
-        --CFLAGS = "$(CFLAGS)"
 	},
 	install_variables = {
 		INSTALL_LUADIR = "$(LUADIR)",
