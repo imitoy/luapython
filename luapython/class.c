@@ -36,9 +36,11 @@ int pushClassLua(lua_State* L, PyObject* obj) {
         lua_setmetatable(L, -2);
         return 1;
     }
-    lua_createtable(L, 0, 4);
+    lua_createtable(L, 0, 5);
     lua_pushcfunction(L, class_index);
     lua_setfield(L, -2, "__index");
+    lua_pushcfunction(L, python_newindex);
+    lua_setfield(L, -2, "__newindex");
     lua_pushcfunction(L, python_gc);
     lua_setfield(L, -2, "__gc");
     lua_pushstring(L, PYTHON_CLASS_NAME);

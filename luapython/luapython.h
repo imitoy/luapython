@@ -30,6 +30,7 @@ int luaopen_luapython(lua_State* L);
 int python_tostring(lua_State* L);
 int python_gc(lua_State* L);
 int python_index(lua_State* L);
+int python_newindex(lua_State* L);
 
 int isPythonObject(lua_State* L, int index);
 

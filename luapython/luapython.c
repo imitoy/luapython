@@ -135,6 +135,35 @@ int python_index(lua_State* L) {
     return 1;
 }
 
+int python_newindex(lua_State* L) {
+    if (!lua_isuserdata(L, -3)) {
+        luaL_error(L, "python_newindex: Attempt to index a %s value", luaL_typename(L, -3));
+        return 0;
+    }
+    const char* key = lua_tostring(L, -2);
+    if (!isPythonObject(L, -3)) {
+        luaL_error(L, "python_newindex: Not a Python object");
+        return 0;
+    }
+    PyObject* obj = *(PyObject**)lua_touserdata(L, -3);
+    Py_XINCREF(obj);
+    PyObject* value = convertPython(L, -1);
+    if (!value) {
+        Py_XDECREF(obj);
+        luaL_error(L, "python_newindex: Failed to convert value to Python object");
+        return 0;
+    }
+    int result = PyObject_SetAttrString(obj, key, value);
+    Py_XDECREF(obj);
+    Py_XDECREF(value);
+    if (result != 0) {
+        PyErr_Print();
+        luaL_error(L, "python_newindex: Failed to set attribute");
+        return 0;
+    }
+    return 0;
+}
+
 int python_addr(lua_State* L) {
     if (!isPythonObject(L, -1)) {
         luaL_error(L, "python_addr: Not a Python object");
