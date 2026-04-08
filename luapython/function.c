@@ -26,7 +26,7 @@ int function_call(lua_State* L) {
             goto normal;
         }
         lua_pushnil(L);
-        bool p = true;
+        int p = 1;
         PyObject* inspect = PyImport_ImportModule("inspect");
         PyObject* signature = PyObject_GetAttrString(inspect, "signature");
         PyObject* signature_of_function = PyObject_CallFunctionObjArgs(signature, function, NULL);
@@ -60,13 +60,13 @@ int function_call(lua_State* L) {
                 if (!PySequence_Contains(keys, key_py)) {
                     lua_pop(L, 2);
                     Py_XDECREF(key_py);
-                    p = false;
+                    p = 0;
                     break;
                 }
                 Py_XDECREF(key_py);
             } else {
                 lua_pop(L, 2);
-                p = false;
+                p = 0;
                 break;
             }
             lua_pop(L, 2);

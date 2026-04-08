@@ -19,8 +19,9 @@ build = {
 	type = "make",
 	build_variables = {
 		LUA_VERSION = "$(LUA_VERSION)",
-		LUA_LIBDIR = "$(LIBDIR)",
+		--LUA_LIBDIR = "$(LIBDIR)",
 		LUA_INCDIR = "$(LUA_INCDIR)",
+        --CFLAGS = "$(CFLAGS)"
 	},
 	install_variables = {
 		INSTALL_LUADIR = "$(LUADIR)",

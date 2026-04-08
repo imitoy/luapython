@@ -1,16 +1,17 @@
-CXX = gcc
+CC = gcc
 LUA_INCDIR ?= /usr/include
-CXXFLAGS = $(shell python3-config --includes) -I$(LUA_INCDIR)
+CFLAGS ?= -I$(LUA_INCDIR)
+CFLAGS += $(shell python3-config --includes)
 LUA_LIBDIR ?= /usr/lib
 LUA_VERSION ?= 5.4
 LDFLAGS = -L$(LUA_LIBDIR) $(shell python3-config --ldflags)
 
 PREFIX ?= /usr
 
-CXX ?= gcc
-CXXFLAGS += -O2 -fPIC -g -I./luapython/
+CC ?= gcc
+CFLAGS += -O2 -fPIC -g -I./luapython/
 LUA_VERSION ?= 5.4
-LDFLAGS += -lm -ldl
+LDFLAGS += -lm -ldl -shared
 
 TARGET = luapython.so
 
@@ -35,26 +36,24 @@ SOURCES = \
 
 OBJECTS = $(SOURCES:.c=.o)
 
-all: $(TARGET) loader
+all: $(TARGET) loader.so
+	@echo CFLAGS: $(CFLAGS)
 
 $(TARGET): $(OBJECTS)
-	$(CXX) -shared -o $@ $^ $(LDFLAGS)
+	$(CC) $(LDFLAGS) -shared -o $@ $^
 
-loader:
-	$(CXX) $(CXXFLAGS) -c luapython/loader.c -o loader.o
-	$(CXX) -shared -o loader.so loader.o $(LDFLAGS)
+loader.so: luapython/loader.c
+	$(CC) $(CFLAGS) $(LDFLAGS) -shared -o loader.so luapython/loader.c
 
 %.o: %.c
-	$(CXX) $(CXXFLAGS) -c $< -o $@
-
-debug: $(TARGET)
-	# $(CXX) $(CXXFLAGS) -c luapython/debug.c -o debug.o
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -rf luapython/*.o
-	rm -f luapython.so
+	rm -f *.so
+	rm -f *.o
 
-install: $(TARGET)
+install: 
 	mkdir -p $(INSTALL_LIBDIR)/luapython
 	mkdir -p $(INSTALL_LUADIR)/luapython
 	cp $(TARGET) $(INSTALL_LIBDIR)/luapython/core.so
