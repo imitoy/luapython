@@ -9,7 +9,9 @@ LDFLAGS = -L$(LUA_LIBDIR) $(shell python3-config --ldflags)
 PREFIX ?= /usr
 
 CC ?= gcc
-CFLAGS += -O2 -fPIC -g -I./luapython/
+
+# It appears that -O0 is necessary to avoid segmentation faults when running the tests. We should investigate this further but for now we will keep it as is.
+CFLAGS += -O0 -fPIC -g -I./luapython/
 LUA_VERSION ?= 5.4
 LDFLAGS += -lm -ldl -shared
 
