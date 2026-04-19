@@ -25,6 +25,8 @@
 
 #define getPythonTypeName(obj) (PyBytes_AsString(PyUnicode_AsEncodedString(PyObject_GetAttrString((PyObject*)Py_TYPE(obj), "__name__"), "utf-8", "surrogateescape")))
 
+#define isPythonTuple(L, index) (isPythonObject(L, index) && PyTuple_Check(*(PyObject**)lua_touserdata(L, index)))
+
 int luaopen_luapython(lua_State* L);
 
 int python_tostring(lua_State* L);

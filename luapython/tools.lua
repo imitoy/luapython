@@ -15,7 +15,7 @@ function tools.shouldConvertToDict(obj)
             scount = scount + 1
         end
     end
-    return scount > ncount
+    return scount >= ncount
 end
 
 function tools.releaseToEnv(luapython, env, key)
@@ -55,7 +55,14 @@ function tools.getPythonAdaptFunction(python_function)
     local adaptfunction = function(self, ...)
         local args = { ... }
         local n = #args
-        return python_function(self, args, n)
+        local arg_dict = args[n]
+        if type(arg_dict) == "table" and tools.shouldConvertToDict(arg_dict) then
+            n = n - 1
+            args[n] = nil
+        else
+            arg_dict = {}
+        end
+        return python_function(self, args, arg_dict, n)
     end
     return adaptfunction
 end

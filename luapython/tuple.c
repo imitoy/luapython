@@ -1,7 +1,5 @@
 #include "luapython.h"
 
-#define isPythonTuple(L, index) (isPythonObject(L, index) && PyTuple_Check(*(PyObject**)lua_touserdata(L, index)))
-
 int tuple_len(lua_State* L) {
     if (!(lua_istable(L, -1) || isPythonTuple(L, -1))) {
         luaL_error(L, "tuple_len: Attempt to get length of %s", luaL_typename(L, -1));
