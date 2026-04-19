@@ -8,153 +8,47 @@ int function_call(lua_State* L) {
         return 0;
     }
     int nargs = lua_tonumber(L, -1);
-    if (!isPythonFunction(L, -3)) {
+    if (!isPythonFunction(L, -4)) {
         luaL_error(L, "function_call: Attempt to call a %s object", luaL_typename(L, -3));
         return 0;
     }
-    PyObject* function = *(PyObject**)lua_touserdata(L, -3);
+    PyObject* function = *(PyObject**)lua_touserdata(L, -4);
     Py_XINCREF(function);
     if (!PyCallable_Check(function)) {
         Py_XDECREF(function);
         luaL_error(L, "function_call: Attempt to call a %s object", getPythonTypeName(function));
         return 0;
     }
-    if (nargs == 1) {
-        lua_geti(L, -2, 1);
-        if(!lua_istable(L, -1)){
-            lua_pop(L, 1);
-            goto normal;
-        }
-        lua_pushnil(L);
-        int p = 1;
-        PyObject* inspect = PyImport_ImportModule("inspect");
-        PyObject* signature = PyObject_GetAttrString(inspect, "signature");
-        PyObject* signature_of_function = PyObject_CallFunctionObjArgs(signature, function, NULL);
-        if (PyErr_Occurred()) {
-            PyErr_Clear();
-            Py_XDECREF(signature_of_function);
-            Py_XDECREF(signature);
-            Py_XDECREF(inspect);
-            lua_pop(L, 2);
-            goto normal;
-        }
-        PyObject* parameters = PyObject_GetAttrString(signature_of_function, "parameters");
-        PyObject* keys = PyObject_CallMethod(parameters, "keys", NULL);
-        if (PyErr_Occurred()) {
-            PyErr_Print();
-            Py_XDECREF(parameters);
-            Py_XDECREF(keys);
-            Py_XDECREF(signature_of_function);
-            Py_XDECREF(signature);
-            Py_XDECREF(inspect);
-            lua_pop(L, 2);
-            Py_XDECREF(function);
-            luaL_error(L, "function_call: Failed to import inspect module");
-            return 0;
-        }
-        while (lua_next(L, -2) != 0) {
-            lua_pushvalue(L, -2);
-            if (lua_isstring(L, -1)) {
-                const char* key = lua_tostring(L, -1);
-                PyObject* key_py = PyUnicode_FromString(key);
-                if (!PySequence_Contains(keys, key_py)) {
-                    lua_pop(L, 2);
-                    Py_XDECREF(key_py);
-                    p = 0;
-                    break;
-                }
-                Py_XDECREF(key_py);
-            } else {
-                lua_pop(L, 2);
-                p = 0;
-                break;
-            }
-            lua_pop(L, 2);
-        }
-        Py_XDECREF(parameters);
-        Py_XDECREF(keys);
-        Py_XDECREF(signature_of_function);
-        Py_XDECREF(signature);
-        Py_XDECREF(inspect);
-        lua_pop(L, 1);
-        if (p) {
-            lua_geti(L, -2, 1);
-            lua_pushnil(L);
-            lua_Integer len = lua_rawlen(L, -2);
-            PyObject* args = PyTuple_New(len);
-            PyObject* kwargs = PyDict_New();
-            while (lua_next(L, -2) != 0) {
-                lua_pushvalue(L, -2);
-                if (lua_type(L, -1) == LUA_TSTRING) {
-                    const char* key = lua_tostring(L, -1);
-                    lua_pushvalue(L, -2);
-                    PyObject* key_py = PyUnicode_FromString(key);
-                    PyObject* value = convertPython(L, -1);
-                    PyDict_SetItem(kwargs, key_py, value);
-                    Py_XDECREF(key_py);
-                    Py_XDECREF(value);
-                    lua_pop(L, 1);
-                }
-                lua_pop(L, 2);
-            }
-            for (int i = 1; i <= len; i++) {
-                lua_geti(L, -1, i);
-                lua_pushvalue(L, -1);
-                PyObject* arg = convertPython(L, -1);
-                lua_pop(L, 2);
-                if (!arg) {
-                    Py_XDECREF(args);
-                    Py_XDECREF(kwargs);
-                    Py_XDECREF(arg);
-                    Py_XDECREF(function);
-                    luaL_error(L, "function_call: Failed to convert argument %d", i + 1);
-                    return 0;
-                }
-                PyTuple_SetItem(args, i, arg);
-            }
-            lua_pop(L, 1);
-            PyObject* result = PyObject_Call(function, args, kwargs);
-            if (PyErr_Occurred()) {
-                PyErr_Print();
-                Py_XDECREF(args);
-                Py_XDECREF(kwargs);
-                Py_XDECREF(result);
-                Py_XDECREF(function);
-                luaL_error(L, "function_call: Error calling function");
-                return 0;
-            }
-            Py_XDECREF(args);
-            Py_XDECREF(kwargs);
-            Py_XDECREF(function);
-            pushLua(L, result);
-            return 1;
-        }
-        lua_pop(L, 1);
-    }
-
-normal:
-    ;
     PyObject* args = PyTuple_New(nargs);
-    if (!args) {
-        Py_XDECREF(args);
-        Py_XDECREF(function);
-        luaL_error(L, "function_call: Failed to create argument tuple");
-        return 0;
-    }
-    for (int i = 1; i <= nargs; i++) {
-        lua_geti(L, -2, i);
+    PyObject* kwargs = PyDict_New();
+    for(int i = 1; i <= nargs; i++){
+        lua_geti(L, -3, i);
         PyObject* arg = convertPython(L, -1);
         if (!arg) {
             Py_XDECREF(args);
+            Py_XDECREF(kwargs);
             Py_XDECREF(function);
-            luaL_error(L, "function_call: Failed to convert argument %d", i + 1);
+            luaL_error(L, "function_call: Failed to convert argument %d", i);
             return 0;
         }
         PyTuple_SetItem(args, i-1, arg);
         lua_pop(L, 1);
     }
-    PyObject* result = PyObject_CallObject(function, args);
+    lua_pushnil(L);
+    while (lua_next(L, -3) != 0) {
+        if (lua_type(L, -2) == LUA_TSTRING) {
+            const char* key = lua_tostring(L, -2);
+            PyObject* key_py = PyUnicode_FromString(key);
+            PyObject* value = convertPython(L, -1);
+            PyDict_SetItem(kwargs, key_py, value);
+            Py_XDECREF(key_py);
+            Py_XDECREF(value);
+        }
+        lua_pop(L, 1);
+    }
+    PyObject* result = PyObject_Call(function, args, kwargs);
     Py_XDECREF(args);
+    Py_XDECREF(kwargs);
     Py_XDECREF(function);
     if (PyErr_Occurred()) {
         PyErr_Print();
