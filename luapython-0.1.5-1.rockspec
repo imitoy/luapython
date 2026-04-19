@@ -13,7 +13,7 @@ C module and Lua helpers]],
 
 rockspec_format = "3.0"
 dependencies = {
-	"lua >= 5.1, <= 5.5",
+	"lua >= 5.3, <= 5.4",
 }
 build = {
 	type = "make",
