@@ -6,7 +6,11 @@ int tuple_len(lua_State* L) {
         return 0;
     }
     if (lua_istable(L, -1)) {
+#if LUA_VERSION_NUM >= 502
         lua_len(L, -1);
+#else
+        lua_pushnumber(L, lua_objlen(L, -1));
+#endif
         return 1;
     }
     PyObject* py_tuple = *(PyObject**)lua_touserdata(L, -1);
@@ -23,7 +27,13 @@ int tuple_index(lua_State* L) {
         return 0;
     }
     if (lua_istable(L, -2)) {
+
+#if LUA_VERSION_NUM >= 503
         lua_geti(L, -2, luaL_checkinteger(L, -1));
+#else
+        lua_pushnumber(L, luaL_checkinteger(L, -1));
+        lua_gettable(L, -3);
+#endif
         return 1;
     }
     PyObject* py_tuple = *(PyObject**)lua_touserdata(L, -2);

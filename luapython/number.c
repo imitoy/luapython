@@ -888,8 +888,15 @@ int pushNumberLua(lua_State* L, PyObject* obj) {
 }
 
 PyObject* convertNumberPython(lua_State* L, int index) {
+
+// For 5.3 or above we keep it as integer
+#if LUA_VERSION_NUM >= 503
+
     if (lua_isinteger(L, index)) {
         return PyLong_FromLong(lua_tointeger(L, index));
     }
+
+#endif
+
     return PyFloat_FromDouble(lua_tonumber(L, index));
 }

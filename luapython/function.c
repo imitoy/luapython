@@ -22,7 +22,12 @@ int function_call(lua_State* L) {
     PyObject* args = PyTuple_New(nargs);
     PyObject* kwargs = PyDict_New();
     for(int i = 1; i <= nargs; i++){
+#if LUA_VERSION_NUM >= 503
         lua_geti(L, -3, i);
+#else
+        lua_pushnumber(L, i);
+        lua_gettable(L, -4);
+#endif
         PyObject* arg = convertPython(L, -1);
         if (!arg) {
             Py_XDECREF(args);

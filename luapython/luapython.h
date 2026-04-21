@@ -27,6 +27,10 @@
 
 #define isPythonTuple(L, index) (isPythonObject(L, index) && PyTuple_Check(*(PyObject**)lua_touserdata(L, index)))
 
+#if LUA_VERSION_NUM <= 501
+#define LUA_OK 0
+#endif
+
 int luaopen_luapython(lua_State* L);
 
 int python_tostring(lua_State* L);

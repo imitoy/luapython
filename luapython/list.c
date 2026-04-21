@@ -8,7 +8,11 @@ int list_len(lua_State* L) {
         return 0;
     }
     if (lua_istable(L, -1)) {
+#if LUA_VERSION_NUM >= 502
         lua_len(L, -1);
+#else
+        lua_pushnumber(L, lua_objlen(L, -1));
+#endif
         return 1;
     }
     PyObject* py_list = *(PyObject**)lua_touserdata(L, -1);
@@ -24,7 +28,13 @@ int list_index(lua_State* L) {
         luaL_error(L, "list_index: Attempt to index %s", luaL_typename(L, -2));
         return 0;
     }
+
+#if LUA_VERSION_NUM >= 503
     if (!lua_isinteger(L, -1)) {
+#else
+    double num = lua_tonumber(L, -1);
+    if(num != ((lua_Integer)num)){
+#endif
         luaL_error(L, "list_index: List index must be an integer");
         return 0;
     }
@@ -54,7 +64,12 @@ int list_newindex(lua_State* L) {
         luaL_error(L, "list_newindex: Attempt to assign to %s", luaL_typename(L, -3));
         return 0;
     }
+#if LUA_VERSION_NUM >= 503
     if (!lua_isinteger(L, -2)) {
+#else
+    double num = lua_tonumber(L, -2);
+    if(num != ((lua_Integer)num)){
+#endif
         luaL_error(L, "list_newindex: List index must be an integer");
         return 0;
     }
@@ -136,11 +151,23 @@ int list_add(lua_State* L) {
 }
 
 int list_mul(lua_State* L) {
-    if (!(lua_istable(L, -2) || isPythonList(L, -2)) || !lua_isinteger(L, -1)) {
+    if (!(lua_istable(L, -2) || isPythonList(L, -2))){
         luaL_error(L, "list_mul: Attempt to repeat %s with non-integer", luaL_typename(L, -2));
         return 0;
     }
+
+#if LUA_VERSION_NUM >= 503
+    if (!lua_isinteger(L, -1)){
+        luaL_error(L, "list_mul: List index must be an integer");
+    }
     lua_Integer n = lua_tointeger(L, -1);
+#else
+    double dn = lua_tonumber(L, -1);
+    if(dn != ((lua_Integer)dn)){
+        luaL_error(L, "list_mul: List index must be an integer");
+    }
+    lua_Integer n = (lua_Integer)dn;
+#endif
     if (n < 0) {
         luaL_error(L, "list_mul: Repeat count must be non-negative");
         return 0;
@@ -208,7 +235,11 @@ int pushListLua(lua_State* L, PyObject* obj) {
 PyObject* convertListPython(lua_State* L, int index) {
     if (lua_istable(L, index)) {
         lua_pushvalue(L, index);
+#if LUA_VERSION_NUM >= 502
         lua_Integer len = lua_rawlen(L, -1);
+#else
+        lua_Integer len = lua_objlen(L, -1);
+#endif
         PyObject* py_list = PyList_New(len);
         for (lua_Integer i = 1; i <= len; ++i) {
             lua_rawgeti(L, -1, i);

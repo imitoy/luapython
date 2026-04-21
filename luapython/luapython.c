@@ -268,6 +268,7 @@ int luaopen_luapython_core(lua_State* L) {
     if(lua_pcall(L, 1, 1, 0) != LUA_OK){
         luaL_error(L, "luaopen_luapython_core: Failed to get import function: %s", lua_tostring(L, -1));
     }
+    int idx = LUA_REGISTRYINDEX;
     lua_setfield(L, -2, "import");
     lua_pushcfunction(L, python_set);
     lua_setfield(L, -2, "set");
@@ -279,7 +280,7 @@ int luaopen_luapython_core(lua_State* L) {
     lua_setfield(L, -2, "list");
     lua_pushcfunction(L, luapython_astable);
     lua_setfield(L, -2, "astable");
-    lua_rawgeti(L, LUA_REGISTRYINDEX, tools_release_to_env);
+    lua_rawgeti(L, idx, tools_release_to_env);
     if(lua_isnil(L, -1)){
         loadTools(L);
         lua_pop(L, 1);

@@ -8,7 +8,11 @@ int set_len(lua_State* L) {
         return 0;
     }
     if (lua_istable(L, -1)) {
+#if LUA_VERSION_NUM >= 502
         lua_len(L, -1);
+#else
+        lua_pushnumber(L, lua_objlen(L, -1));
+#endif
         return 1;
     }
     PyObject* py_set = *(PyObject**)lua_touserdata(L, -1);
