@@ -8,12 +8,14 @@ int module_index(lua_State* L) {
     const char* key = lua_tostring(L, -1);
     PyObject* module = convertPython(L, -2);
     PyObject* value = PyObject_GetAttrString(module, key);
-    Py_XDECREF(module);
     if (value == NULL) {
+        const char* moduleName = getPythonTypeName(module);
+        Py_XDECREF(module);
         Py_XDECREF(value);
-        luaL_error(L, "module_index: Attribute %s not found in module %s", key, getPythonTypeName(value));
+        luaL_error(L, "module_index: Attribute %s not found in module %s", key, moduleName);
         return 0;
     }
+    Py_XDECREF(module);
     pushLua(L, value);
     return 1;
 }
