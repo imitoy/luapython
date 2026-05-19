@@ -57,8 +57,8 @@ function tools.getPythonAdaptFunction(python_function)
         local n = #args
         local arg_dict = args[n]
         if type(arg_dict) == "table" and tools.shouldConvertToDict(arg_dict) then
-            n = n - 1
             args[n] = nil
+            n = n - 1
         else
             arg_dict = {}
         end
