@@ -94,9 +94,43 @@ local path = luapython.load(3.14, "/path_to_v_env/lib")
 -- or luapython.loadNative("/path_to_libpython.so") -- will load lib directly
 ```
 
+## Testing
+
+```bash
+make test      # builds, stages into build/test-tree, runs test/test.lua
+make valgrind  # same suite under valgrind (invalid reads/writes only)
+```
+
+The suite runs against Lua 5.1 through 5.5; pass `LUA_INCDIR`, `LUA_VERSION`
+and `LUA` to build for a specific interpreter. Objects are ABI-specific, so
+switching versions recompiles automatically (`.build-flags` remembers what the
+current `.o` files were built against).
+
+## Known limitations
+
+- **Lua 5.1: comparing a Python number with a Lua number does not work.**
+  `pynum < 5` raises *"attempt to compare userdata with number"*. Lua 5.1 only
+  invokes `__lt`/`__le` when both operands share the very same metamethod, and
+  a Lua number has none. Arithmetic works fine; wrap the operand instead
+  (`pynum < builtins.int(5)`). Fixed in Lua 5.2 and later.
+- **Lua 5.1/5.2 have no integer subtype.** `1` and `1.0` are the same value
+  there, so integral numbers are passed to Python as `int` and only fractional
+  ones as `float`. On 5.3+ the distinction follows Lua's own.
+- **Bitwise operators (`& | ~ << >>`) require Lua 5.3+.** They are not part of
+  the language on 5.1/5.2.
+- **Keyword arguments are a heuristic.** A trailing table is treated as
+  keyword arguments when its keys are mostly strings. Pass containers as
+  `luapython.dict{...}` / `luapython.list{...}` to be explicit, and note that a
+  table mixing array and named keys is rejected rather than silently truncated.
+- **One interpreter per process.** `luapython.load()` starts CPython; a second
+  call (or a host that already embedded Python) raises instead of re-entering.
+  `luapython.finalize()` releases it, after which every handle obtained earlier
+  becomes inert: touching one raises a Lua error instead of dereferencing freed
+  memory.
+
 ## TODO
 
 - [x] Support for Python version above 3.8
 - [x] Support for Lua5.5
 - [x] Conda support
-- [ ] Integrate Python error in Lua
+- [x] Integrate Python error in Lua

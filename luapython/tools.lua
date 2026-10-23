@@ -1,40 +1,39 @@
-local functions = ({ ... })[0]
-
 local tools = {}
 
+-- Decide whether a Lua table should be converted to a Python dict (true) or
+-- to a Python list (false). String keys dominate -> dict, otherwise list.
 function tools.shouldConvertToDict(obj)
     if type(obj) ~= "table" then
-        error("tools.lua: table expected, got " .. type(obj))
+        error("luapython.tools: table expected, got " .. type(obj), 2)
     end
     local ncount = 0
     local scount = 0
-    for i, _ in pairs(obj) do
-        if type(i) == "number" then
+    for key in pairs(obj) do
+        if type(key) == "number" then
             ncount = ncount + 1
-        elseif type(i) == "string" then
+        elseif type(key) == "string" then
             scount = scount + 1
         end
     end
-    return scount >= ncount
+    return scount >= ncount and scount > 0
 end
 
 function tools.releaseToEnv(luapython, env, key)
     if env == nil and key == nil then
         env = _G
-        key = nil
     elseif type(env) == "string" and key == nil then
         key = env
         env = _G
     elseif type(env) ~= "table" then
-        error("tools.lua: Env table expected")
+        error("luapython.init: env table expected, got " .. type(env), 2)
     end
-    
+
     if key ~= nil and type(key) ~= "string" then
-        error("tools.lua: Key must be a string")
+        error("luapython.init: key must be a string", 2)
     end
 
     if type(luapython) ~= "table" then
-        error("tools.lua: First arguement must be a table")
+        error("luapython.init: first argument must be a table", 2)
     end
 
     if key then
@@ -48,35 +47,40 @@ function tools.releaseToEnv(luapython, env, key)
     end
 end
 
+-- Wrap a raw python_function so that a trailing table is treated as keyword
+-- arguments. Note this is a heuristic: a callable that expects a dict as its
+-- *last positional* argument must receive it wrapped with luapython.dict{}.
 function tools.getPythonAdaptFunction(python_function)
     if type(python_function) ~= "function" then
-        error("tools.lua: function expected, got " .. type(python_function))
+        error("luapython.tools: function expected, got " .. type(python_function), 2)
     end
-    local adaptfunction = function(self, ...)
+
+    return function(self, ...)
         local args = { ... }
         local n = #args
-        local arg_dict = args[n]
-        if type(arg_dict) == "table" and tools.shouldConvertToDict(arg_dict) then
+        local last = args[n]
+        local arg_dict = {}
+        -- An empty table is not a keyword-argument list: f({}) must pass an
+        -- empty container, not vanish into f().
+        if type(last) == "table" and next(last) ~= nil and tools.shouldConvertToDict(last) then
+            arg_dict = last
             args[n] = nil
             n = n - 1
-        else
-            arg_dict = {}
         end
         return python_function(self, args, arg_dict, n)
     end
-    return adaptfunction
 end
 
 function tools.getIterFunction(iter, get)
     if type(iter) ~= "function" then
-        error("tools.lua: first argument is not a function")
+        error("luapython.tools: first argument is not a function", 2)
+    end
+    if type(get) ~= "function" then
+        error("luapython.tools: second argument is not a function", 2)
     end
 
-    if type(get) ~= "function" then
-        error("tools.lua: second argument is not a function")
-    end
-    local function iter_func(array)
-        return iter, get(array), nil
+    local function iter_func(state)
+        return iter, get(state), nil
     end
 
     return iter_func

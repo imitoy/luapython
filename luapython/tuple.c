@@ -1,101 +1,81 @@
 #include "luapython.h"
 
+/* Lua 5.1 hands `__len` two arguments (the object and a nil), 5.2+ hands over
+ * only one. Address the object as argument #1 so both work. */
 int tuple_len(lua_State* L) {
-    if (!(lua_istable(L, -1) || isPythonTuple(L, -1))) {
-        luaL_error(L, "tuple_len: Attempt to get length of %s", luaL_typename(L, -1));
-        return 0;
+    if (!isPythonTuple(L, 1)) {
+        return luaL_error(L, "tuple_len: attempt to get length of %s", luaL_typename(L, 1));
     }
-    if (lua_istable(L, -1)) {
-#if LUA_VERSION_NUM >= 502
-        lua_len(L, -1);
-#else
-        lua_pushnumber(L, lua_objlen(L, -1));
-#endif
-        return 1;
-    }
-    PyObject* py_tuple = *(PyObject**)lua_touserdata(L, -1);
-    Py_XINCREF(py_tuple);
-    Py_ssize_t len = PyTuple_Size(py_tuple);
-    Py_XDECREF(py_tuple);
-    lua_pushinteger(L, len);
+    PyObject* tuple = *(PyObject**)lua_touserdata(L, 1);
+    lua_pushinteger(L, (lua_Integer)PyTuple_Size(tuple));
     return 1;
 }
 
 int tuple_index(lua_State* L) {
-    if (!(lua_istable(L, -2) || isPythonTuple(L, -2))) {
-        luaL_error(L, "tuple_index: Attempt to index %s", luaL_typename(L, -2));
-        return 0;
+    if (!isPythonTuple(L, -2)) {
+        return luaL_error(L, "tuple_index: attempt to index %s", luaL_typename(L, -2));
     }
-    if (lua_istable(L, -2)) {
+    lua_Integer idx = luaL_checkinteger(L, -1);
+    PyObject* tuple = *(PyObject**)lua_touserdata(L, -2);
+    Py_ssize_t len = PyTuple_Size(tuple);
 
-#if LUA_VERSION_NUM >= 503
-        lua_geti(L, -2, luaL_checkinteger(L, -1));
-#else
-        lua_pushnumber(L, luaL_checkinteger(L, -1));
-        lua_gettable(L, -3);
-#endif
-        return 1;
+    /* Same 1-based mapping as list: t[1] -> py[0], t[-1] -> last element. */
+    Py_ssize_t py_idx;
+    if (idx > 0) {
+        py_idx = (Py_ssize_t)idx - 1;
+    } else if (idx < 0) {
+        py_idx = len + (Py_ssize_t)idx;
+    } else {
+        py_idx = -1;
     }
-    PyObject* py_tuple = *(PyObject**)lua_touserdata(L, -2);
-    Py_XINCREF(py_tuple);
-    long index = luaL_checkinteger(L, -1);
-    Py_ssize_t py_index = index - 1;
-    Py_ssize_t size = PyTuple_Size(py_tuple);
-    if (py_index < 0 || py_index >= size) {
-        Py_XDECREF(py_tuple);
+    if (py_idx < 0 || py_idx >= len) {
         lua_pushnil(L);
         return 1;
     }
-    PyObject* py_value = PyTuple_GetItem(py_tuple, py_index);
-    Py_XDECREF(py_tuple);
-    pushLua(L, py_value);
+    PyObject* value = PyTuple_GetItem(tuple, py_idx);   /* borrowed */
+    Py_XINCREF(value);
+    pushLua(L, value);                                  /* consumes */
     return 1;
 }
 
-int table_tuple_index = 0;
-
 int pushTupleLua(lua_State* L, PyObject* obj) {
     if (!PyTuple_Check(obj)) {
-        luaL_error(L, "pushTupleLua: Not a tuple");
-        return 0;
+        Py_XDECREF(obj);
+        return luaL_error(L, "pushTupleLua: not a tuple");
     }
-    if (table_tuple_index != 0) {
-        void* point = lua_newuserdata(L, sizeof(PyObject*));
-        *(PyObject**)point = obj;
-        lua_rawgeti(L, LUA_REGISTRYINDEX, table_tuple_index);
-        if (!lua_istable(L, -1)) {
-            luaL_error(L, "pushClassLua: Internal error, class index is not a table");
-            return 0;
-        }
-        lua_setmetatable(L, -2);
-        return 1;
+    void* point = lua_newuserdata(L, sizeof(PyObject*));
+    *(PyObject**)point = obj;
+    if (luaL_newmetatable(L, PYTHON_TUPLE_NAME)) {
+        lua_pushcfunction(L, tuple_len);
+        lua_setfield(L, -2, "__len");
+        lua_pushcfunction(L, tuple_index);
+        lua_setfield(L, -2, "__index");
+        lua_pushcfunction(L, python_tostring);
+        lua_setfield(L, -2, "__tostring");
+        lua_pushcfunction(L, python_gc);
+        lua_setfield(L, -2, "__gc");
+        luapython_register_metatable(L);
     }
-    lua_createtable(L, 0, 5);
-    lua_pushcfunction(L, tuple_len);
-    lua_setfield(L, -2, "__len");
-    lua_pushcfunction(L, tuple_index);
-    lua_setfield(L, -2, "__index");
-    lua_pushcfunction(L, python_tostring);
-    lua_setfield(L, -2, "__tostring");
-    lua_pushcfunction(L, python_gc);
-    lua_setfield(L, -2, "__gc");
-    lua_pushstring(L, PYTHON_TUPLE_NAME);
-    lua_setfield(L, -2, "__name");
-    table_tuple_index = luaL_ref(L, LUA_REGISTRYINDEX);
-    return pushTupleLua(L, obj);
+    lua_setmetatable(L, -2);
+    return 1;
 }
 
 PyObject* convertTuplePython(lua_State* L, int index) {
-    if (lua_istable(L, index)) {
-        PyObject* py_list = convertListPython(L, index);
-        PyObject* py_tuple = PyList_AsTuple(py_list);
-        Py_XDECREF(py_list);
-        return py_tuple;
-    } else if (isPythonTuple(L, index)) {
-        PyObject* py_tuple = *(PyObject**)lua_touserdata(L, index);
-        Py_XINCREF(py_tuple);
-        return py_tuple;
+    if (lua_type(L, index) == LUA_TTABLE) {
+        PyObject* list = convertListPython(L, index);
+        if (list == NULL) {
+            return NULL;
+        }
+        PyObject* tuple = PyList_AsTuple(list);
+        Py_DECREF(list);
+        return tuple;
     }
-    luaL_error(L, "convertTuplePython: Attempt to convert a %s value to Python tuple", luaL_typename(L, index));
+    if (isPythonTuple(L, index)) {
+        PyObject* tuple = *(PyObject**)lua_touserdata(L, index);
+        Py_XINCREF(tuple);
+        return tuple;
+    }
+    luaL_error(L, "convertTuplePython: expected a table or tuple at index %d, got %s",
+               index, luaL_typename(L, index));
     return NULL;
 }

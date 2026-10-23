@@ -1,0 +1,23 @@
+# Build artifacts
+*.o
+*.so
+*.dylib
+*.dll
+*.a
+.build-flags
+.build-flags.tmp
+
+# Editor / OS
+.DS_Store
+*.swp
+*~
+.vscode/
+.idea/
+compile_commands.json
+
+# Test leftovers
+/core
+core.*
+
+# test harness output
+build/
