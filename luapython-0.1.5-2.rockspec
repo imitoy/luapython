@@ -1,5 +1,5 @@
 package = "luapython"
-version = "0.1.5-2"
+version = "0.1.6-1"
 source = {
 	url = "git+https://github.com/imitoy/luapython.git",
 }
