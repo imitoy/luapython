@@ -342,6 +342,45 @@ local deep = { 1 }
 for _ = 1, 50 do deep = { deep } end
 ok(pcall(luapython.list, deep), "50 层嵌套仍然可以正常转换")
 
+-- 53f6a89 的回归：失败的转换必须把建到一半的 Python 容器全部释放。
+-- 转换层一旦用 luaL_error 直接 longjmp，就会跳过中间所有 Py_DECREF，
+-- 一次环形 table 转换漏约 200 个对象（实测 3000 次漏 +603001 个）。
+-- 下面三条失败路径各连跑 100 次，Python 侧的存活对象数必须几乎不动。
+-- 两个计数器都看：gc.get_objects() 数得到受 GC 跟踪的对象；但 CPython
+-- 3.13 起值全是标量的 dict（含空 dict）不再被 GC 跟踪，dict 路径中途
+-- 失败漏掉的空 dict 只有 sys.getallocatedblocks() 能看见。
+local ok_gc, gcmod = pcall(luapython.import, "gc")
+local ok_sys, sysmod = pcall(luapython.import, "sys")
+if not ok_gc or gcmod.get_objects == nil
+    or not ok_sys or sysmod.getallocatedblocks == nil then
+    skipped("失败转换不泄漏 Python 对象（gc.get_objects / sys.getallocatedblocks 不可用）")
+else
+    local function py_live_counts()
+        collectgarbage("collect")   -- 丢掉上一次测量留下的句柄
+        return builtins.len(gcmod.get_objects()), sysmod.getallocatedblocks()
+    end
+    local function leaked_growth(fail_once)
+        for _ = 1, 3 do pcall(fail_once) end   -- 先热身，吸收一次性缓存/驻留字符串
+        local gc_before, blocks_before = py_live_counts()
+        for _ = 1, 100 do pcall(fail_once) end
+        local gc_after, blocks_after = py_live_counts()
+        return gc_after - gc_before, blocks_after - blocks_before
+    end
+    -- 不泄漏时实测两个增长都是 0（blocks 偶尔 +1~3）；阈值给 CPython
+    -- 自身的波动留余量，而旧代码下每条路径的增长都远超阈值。
+    local function check_no_leak(name, fail_once)
+        local gc_grown, blocks_grown = leaked_growth(fail_once)
+        local detail = "gc +" .. gc_grown .. ", blocks +" .. blocks_grown
+        ok(gc_grown < 10 and blocks_grown < 100,
+           name .. " 连续 100 次失败转换不泄漏 Python 对象（" .. detail .. "）",
+           detail)
+    end
+    check_no_leak("环形 list", function() luapython.list(cyclic) end)
+    check_no_leak("环形 dict", function() luapython.dict(cyclic_dict) end)
+    -- 旧路径：元素类型不支持（function）在递归中途失败
+    check_no_leak("list{1, function()}", function() luapython.list({ 1, function() end }) end)
+end
+
 if LUA_VER >= 5.2 then
     local walked = {}
     for key, value in pairs(luapython.dict { a = 1, b = 2 }) do
