@@ -89,17 +89,26 @@ static int dict_pairs_iter(lua_State* L) {
     Py_ssize_t pos = (Py_ssize_t)lua_tointeger(L, lua_upvalueindex(2));
     PyObject* key;
     PyObject* value;
-    if (!PyDict_Next(dict, &pos, &key, &value)) {
-        lua_pushnil(L);            /* end of traversal */
-        return 1;
+    while (PyDict_Next(dict, &pos, &key, &value)) {
+        if (key == Py_None) {
+            /* Python allows d[None] = x, but None has no Lua value: pushLua()
+             * maps it to nil, and a nil first return value *ends* a generic
+             * for immediately. Yielding it made the loop stop at the first
+             * None key and silently hide every other entry. Skip it instead:
+             * `for k, v in pairs(d)` then visits every key Lua can represent.
+             * (None itself stays reachable through d[nil].) */
+            continue;
+        }
+        lua_pushinteger(L, (lua_Integer)pos);
+        lua_replace(L, lua_upvalueindex(2));   /* remember where to continue */
+        Py_XINCREF(key);
+        pushLua(L, key);               /* consumes */
+        Py_XINCREF(value);
+        pushLua(L, value);             /* consumes */
+        return 2;
     }
-    lua_pushinteger(L, (lua_Integer)pos);
-    lua_replace(L, lua_upvalueindex(2));   /* remember where to continue */
-    Py_XINCREF(key);
-    pushLua(L, key);               /* consumes */
-    Py_XINCREF(value);
-    pushLua(L, value);             /* consumes */
-    return 2;
+    lua_pushnil(L);            /* end of traversal */
+    return 1;
 }
 
 int dict_pairs(lua_State* L) {

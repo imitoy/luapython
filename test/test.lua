@@ -336,6 +336,20 @@ if LUA_VER >= 5.2 then
         walked[key] = value
     end
     ok(walked.a == 1 and walked.b == 2, "for k, v in pairs(pydict)")
+
+    -- Python 允许 d[None] = x，但 None 没有 Lua 值（nil）。迭代器若把它当
+    -- 第一个返回值，泛型 for 会立刻结束，静默漏掉其余所有键。
+    local none_dict = luapython.dict {}
+    none_dict[nil] = "none-key"
+    none_dict.a = 1
+    none_dict.b = 2
+    local visited = {}
+    for key, value in pairs(none_dict) do
+        visited[key] = value
+    end
+    ok(#none_dict == 3 and visited.a == 1 and visited.b == 2,
+       "None 键存在时 pairs 仍访问其余所有键",
+       tostring(visited.a) .. "," .. tostring(visited.b))
 else
     skipped("pairs(pydict)（Lua 5.1 不支持 __pairs）")
 end
