@@ -81,7 +81,15 @@ end
 local function lib_candidates(version, prefix)
     local base = "libpython" .. version
     if prefix == "" then
-        return { base .. ".so", base .. ".so.1.0" }
+        -- Bare names: let the dynamic loader search its usual paths. Keep the
+        -- macOS/Windows extensions the explicit-directory list has, otherwise
+        -- those platforms lose the last-resort lookup.
+        return {
+            base .. ".so",
+            base .. ".so.1.0",
+            base .. ".dylib",
+            base .. ".dll",
+        }
     end
     return {
         prefix .. "/" .. base .. ".so",
