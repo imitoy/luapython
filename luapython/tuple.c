@@ -77,7 +77,7 @@ PyObject* convertTuplePython(lua_State* L, int index) {
         Py_XINCREF(tuple);
         return tuple;
     }
-    luaL_error(L, "convertTuplePython: expected a table or tuple at index %d, got %s",
-               index, luaL_typename(L, index));
+    luapython_convert_error(L, "convertTuplePython: expected a table or tuple at index %d, got %s",
+                            index, luaL_typename(L, index));
     return NULL;
 }

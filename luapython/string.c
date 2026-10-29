@@ -203,7 +203,7 @@ PyObject* convertStringPython(lua_State* L, int index) {
         Py_XINCREF(str);
         return str;
     }
-    luaL_error(L, "convertStringPython: expected a string at index %d, got %s",
-               index, luaL_typename(L, index));
+    luapython_convert_error(L, "convertStringPython: expected a string at index %d, got %s",
+                            index, luaL_typename(L, index));
     return NULL;
 }

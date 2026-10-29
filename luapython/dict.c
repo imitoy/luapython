@@ -45,7 +45,7 @@ int dict_index(lua_State* L) {
     PyObject* dict = *(PyObject**)lua_touserdata(L, -2);
     PyObject* key = convertPython(L, -1);
     if (key == NULL) {
-        return luapython_throw(L, "dict_index: cannot convert key");
+        return luapython_throw_convert(L, "dict_index: cannot convert key");
     }
     PyObject* value = PyDict_GetItemWithError(dict, key);   /* borrowed */
     Py_DECREF(key);
@@ -125,7 +125,7 @@ int dict_newindex(lua_State* L) {
     if (key == NULL || value == NULL) {
         Py_XDECREF(key);
         Py_XDECREF(value);
-        return luapython_throw(L, "dict_newindex: cannot convert key or value");
+        return luapython_throw_convert(L, "dict_newindex: cannot convert key or value");
     }
     int rc = PyDict_SetItem(dict, key, value);   /* does NOT steal */
     Py_DECREF(key);
@@ -143,6 +143,9 @@ int dict_add(lua_State* L) {
     if (left == NULL || right == NULL) {
         Py_XDECREF(left);
         Py_XDECREF(right);
+        if (luapython_convert_error_pending(L)) {
+            return luapython_throw_convert(L, NULL);
+        }
         return luaL_error(L, "dict_add: attempt to merge %s and %s",
                           luaL_typename(L, -2), luaL_typename(L, -1));
     }
@@ -170,6 +173,9 @@ int dict_mul(lua_State* L) {
     if (left == NULL || right == NULL) {
         Py_XDECREF(left);
         Py_XDECREF(right);
+        if (luapython_convert_error_pending(L)) {
+            return luapython_throw_convert(L, NULL);
+        }
         return luaL_error(L, "dict_mul: attempt to intersect %s and %s",
                           luaL_typename(L, -2), luaL_typename(L, -1));
     }
@@ -203,6 +209,9 @@ int dict_sub(lua_State* L) {
     if (left == NULL || right == NULL) {
         Py_XDECREF(left);
         Py_XDECREF(right);
+        if (luapython_convert_error_pending(L)) {
+            return luapython_throw_convert(L, NULL);
+        }
         return luaL_error(L, "dict_sub: attempt to subtract %s from %s",
                           luaL_typename(L, -1), luaL_typename(L, -2));
     }
@@ -275,26 +284,31 @@ PyObject* convertDictPythonAt(lua_State* L, int index, int depth) {
         lua_pushnil(L);
         while (lua_next(L, -2) != 0) {
             PyObject* key = convertPythonAt(L, -2, depth + 1);
+            if (key == NULL) {
+                /* Unwind by hand: luaL_error() would longjmp past the
+                 * Py_DECREF and the lua_pop calls. */
+                lua_pop(L, 3);               /* value + key + table copy */
+                Py_DECREF(dict);
+                return NULL;
+            }
             PyObject* value = convertPythonAt(L, -1, depth + 1);
             lua_pop(L, 1);                   /* pop the value, keep the key */
-            if (key == NULL || value == NULL) {
-                Py_XDECREF(key);
-                Py_XDECREF(value);
+            if (value == NULL) {
+                Py_DECREF(key);
                 lua_pop(L, 2);               /* key + table copy */
                 Py_DECREF(dict);
-                luapython_throw(L, "convertDictPython");
                 return NULL;
             }
             /* Keys are converted like any other value, so numeric keys are
              * preserved instead of being silently dropped. Unhashable keys
-             * (tables, lists) fail here with a real error. */
+             * (tables, lists) fail here with a real error; the pending Python
+             * exception is reported by the entry point. */
             int rc = PyDict_SetItem(dict, key, value);
             Py_DECREF(key);
             Py_DECREF(value);
             if (rc != 0) {
-                lua_pop(L, 2);
+                lua_pop(L, 2);               /* key + table copy */
                 Py_DECREF(dict);
-                luapython_throw(L, "convertDictPython");
                 return NULL;
             }
         }
@@ -306,8 +320,9 @@ PyObject* convertDictPythonAt(lua_State* L, int index, int depth) {
         Py_XINCREF(dict);
         return dict;
     }
-    luaL_error(L, "convertDictPython: expected a table or dict at index %d, got %s",
-               index, luaL_typename(L, index));
+    luapython_convert_error(L,
+        "convertDictPython: expected a table or dict at index %d, got %s",
+        index, luaL_typename(L, index));
     return NULL;
 }
 

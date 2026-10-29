@@ -109,6 +109,75 @@ int luapython_throw(lua_State* L, const char* context) {
 }
 
 /* ------------------------------------------------------------------------- */
+/* deferred conversion errors                                                */
+/* ------------------------------------------------------------------------- */
+
+/* The recursive table converter cannot use luaL_error(): the longjmp would
+ * skip every Py_DECREF between the failure point and the Lua entry point,
+ * leaking the containers built so far (and their NULL-initialised PyList
+ * slots, which later make repr() dereference NULL). The message is parked in
+ * the registry instead, the stack unwinds by returning NULL, and only the Lua
+ * entry point raises once all references have been released.
+ *
+ * The registry is per lua_State, so two independent interpreters cannot see
+ * each other's errors. */
+#define LUAPYTHON_CONVERT_ERROR "luapython.convert_error"
+
+void luapython_convert_error(lua_State* L, const char* fmt, ...) {
+    char buf[768];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof buf, fmt, ap);
+    va_end(ap);
+
+    /* Keep the deepest message: outer frames only see a NULL result and must
+     * not overwrite the cause with a generic one. */
+    lua_getfield(L, LUA_REGISTRYINDEX, LUAPYTHON_CONVERT_ERROR);
+    int pending = lua_type(L, -1) == LUA_TSTRING;
+    lua_pop(L, 1);
+    if (!pending) {
+        lua_pushstring(L, buf);
+        lua_setfield(L, LUA_REGISTRYINDEX, LUAPYTHON_CONVERT_ERROR);
+    }
+}
+
+int luapython_convert_error_pending(lua_State* L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, LUAPYTHON_CONVERT_ERROR);
+    int pending = lua_type(L, -1) == LUA_TSTRING;
+    lua_pop(L, 1);
+    return pending;
+}
+
+void luapython_convert_error_clear(lua_State* L) {
+    lua_pushnil(L);
+    lua_setfield(L, LUA_REGISTRYINDEX, LUAPYTHON_CONVERT_ERROR);
+}
+
+int luapython_throw_convert(lua_State* L, const char* context) {
+    lua_getfield(L, LUA_REGISTRYINDEX, LUAPYTHON_CONVERT_ERROR);
+    if (lua_type(L, -1) == LUA_TSTRING) {
+        /* Copy before the pop: luaL_error() below may allocate and collect. */
+        const char* msg = lua_tostring(L, -1);
+        char buf[1024];
+        snprintf(buf, sizeof buf, "%s", msg != NULL ? msg : "");
+        lua_pop(L, 1);
+        luapython_convert_error_clear(L);
+        /* A Lua-level conversion failure never leaves a Python exception
+         * behind, but clear defensively so a poisoned interpreter state
+         * cannot leak into the next, unrelated call. */
+        PyErr_Clear();
+        return luaL_error(L, "%s", buf);
+    }
+    lua_pop(L, 1);
+    if (PyErr_Occurred()) {
+        return luapython_throw(L, context != NULL ? context : "convertPython");
+    }
+    return luaL_error(L, "%s: conversion failed",
+                      context != NULL ? context : "convertPython");
+}
+
+/* ------------------------------------------------------------------------- */
 /* metatable bookkeeping                                                     */
 /* ------------------------------------------------------------------------- */
 
@@ -257,7 +326,7 @@ static int python_set(lua_State* L) {
     }
     PyObject* set = convertSetPython(L, -1);
     if (set == NULL) {
-        return luapython_throw(L, "luapython.set");
+        return luapython_throw_convert(L, "luapython.set");
     }
     pushSetLua(L, set);
     return 1;
@@ -269,7 +338,7 @@ static int python_dict(lua_State* L) {
     }
     PyObject* dict = convertDictPython(L, -1);
     if (dict == NULL) {
-        return luapython_throw(L, "luapython.dict");
+        return luapython_throw_convert(L, "luapython.dict");
     }
     pushDictLua(L, dict);
     return 1;
@@ -281,7 +350,7 @@ static int python_tuple(lua_State* L) {
     }
     PyObject* tuple = convertTuplePython(L, -1);
     if (tuple == NULL) {
-        return luapython_throw(L, "luapython.tuple");
+        return luapython_throw_convert(L, "luapython.tuple");
     }
     pushTupleLua(L, tuple);
     return 1;
@@ -293,7 +362,7 @@ static int python_list(lua_State* L) {
     }
     PyObject* list = convertListPython(L, -1);
     if (list == NULL) {
-        return luapython_throw(L, "luapython.list");
+        return luapython_throw_convert(L, "luapython.list");
     }
     pushListLua(L, list);
     return 1;
@@ -488,7 +557,7 @@ int python_newindex(lua_State* L) {
     }
     PyObject* value = convertPython(L, -1);
     if (value == NULL) {
-        return luapython_throw(L, "python_newindex: cannot convert value");
+        return luapython_throw_convert(L, "python_newindex: cannot convert value");
     }
     int result = PyObject_SetAttrString(obj, key, value);
     Py_DECREF(value);
@@ -573,9 +642,11 @@ PyObject* luapython_number_to_py(lua_State* L, int index) {
 PyObject* convertPythonAt(lua_State* L, int index, int depth) {
     if (depth > LUAPYTHON_MAX_NESTING) {
         /* A cyclic table would recurse until the C stack is exhausted and the
-         * process dies in a segfault; report it as an ordinary Lua error. */
-        luaL_error(L, "convertPython: table nested more than %d levels deep "
-                      "(cyclic table?)", LUAPYTHON_MAX_NESTING);
+         * process dies in a segfault; report it as an ordinary Lua error.
+         * Recorded, not raised: see luapython_convert_error(). */
+        luapython_convert_error(L,
+            "convertPython: table nested more than %d levels deep "
+            "(cyclic table?)", LUAPYTHON_MAX_NESTING);
         return NULL;
     }
     /* Normalise to an absolute index: the table branch pushes values, and a
@@ -587,12 +658,13 @@ PyObject* convertPythonAt(lua_State* L, int index, int depth) {
 
     if (type == LUA_TUSERDATA) {
         if (!isPythonObject(L, index)) {
-            luaL_error(L, "convertPython: %s is not a Python object", luaL_typename(L, index));
+            luapython_convert_error(L, "convertPython: %s is not a Python object",
+                                    luaL_typename(L, index));
             return NULL;
         }
         PyObject* obj = *(PyObject**)lua_touserdata(L, index);
         if (obj == NULL) {
-            luaL_error(L, "convertPython: the Python object is no longer valid");
+            luapython_convert_error(L, "convertPython: the Python object is no longer valid");
             return NULL;
         }
         Py_XINCREF(obj);
@@ -623,8 +695,9 @@ PyObject* convertPythonAt(lua_State* L, int index, int depth) {
         lua_pushvalue(L, index);
         if (lua_pcall(L, 1, 1, 0) != LUA_OK) {
             const char* err = lua_tostring(L, -1);
-            luaL_error(L, "convertPython: shouldConvertToDict failed: %s",
-                       err != NULL ? err : "unknown error");
+            luapython_convert_error(L, "convertPython: shouldConvertToDict failed: %s",
+                                    err != NULL ? err : "unknown error");
+            lua_pop(L, 1);               /* the error object */
             return NULL;
         }
         int is_dict = lua_toboolean(L, -1);
@@ -634,7 +707,8 @@ PyObject* convertPythonAt(lua_State* L, int index, int depth) {
         }
         return convertListPythonAt(L, index, depth);
     }
-    luaL_error(L, "convertPython: unsupported Lua type %s", luaL_typename(L, index));
+    luapython_convert_error(L, "convertPython: unsupported Lua type %s",
+                            luaL_typename(L, index));
     return NULL;
 }
 

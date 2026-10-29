@@ -268,7 +268,8 @@ int pushNumberLua(lua_State* L, PyObject* obj) {
 
 PyObject* convertNumberPython(lua_State* L, int index) {
     if (lua_type(L, index) != LUA_TNUMBER) {
-        luaL_error(L, "convertNumberPython: number expected, got %s", luaL_typename(L, index));
+        luapython_convert_error(L, "convertNumberPython: number expected, got %s",
+                                luaL_typename(L, index));
         return NULL;
     }
     return luapython_number_to_py(L, index);

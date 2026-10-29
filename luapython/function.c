@@ -72,7 +72,7 @@ int function_call(lua_State* L) {
         if (arg == NULL) {
             Py_DECREF(args);
             Py_DECREF(kwargs);
-            return luapython_throw(L, "function_call: cannot convert argument");
+            return luapython_throw_convert(L, "function_call: cannot convert argument");
         }
         PyTuple_SetItem(args, i - 1, arg);   /* steals the reference */
     }
@@ -89,7 +89,7 @@ int function_call(lua_State* L) {
                 lua_pop(L, 2);          /* value + key */
                 Py_DECREF(args);
                 Py_DECREF(kwargs);
-                return luapython_throw(L, "function_call: cannot convert keyword argument");
+                return luapython_throw_convert(L, "function_call: cannot convert keyword argument");
             }
             int rc = PyDict_SetItem(kwargs, key_py, value);
             Py_DECREF(key_py);

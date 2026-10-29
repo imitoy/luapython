@@ -84,7 +84,7 @@ int list_newindex(lua_State* L) {
     }
     PyObject* value = convertPython(L, -1);
     if (value == NULL) {
-        return luapython_throw(L, "list_newindex: cannot convert value");
+        return luapython_throw_convert(L, "list_newindex: cannot convert value");
     }
     /* PyList_SetItem() steals the reference: no Py_DECREF afterwards. */
     int rc = PyList_SetItem(list, py_idx, value);
@@ -113,8 +113,13 @@ int list_add(lua_State* L) {
         Py_XINCREF(right);
     }
     if (left == NULL || right == NULL) {
+        /* Drop whatever converted successfully before raising: convert* no
+         * longer longjmps, so nothing else will release these. */
         Py_XDECREF(left);
         Py_XDECREF(right);
+        if (luapython_convert_error_pending(L)) {
+            return luapython_throw_convert(L, NULL);
+        }
         return luaL_error(L, "list_add: attempt to add %s and %s",
                           luaL_typename(L, -2), luaL_typename(L, -1));
     }
@@ -211,7 +216,7 @@ PyObject* convertListPythonAt(lua_State* L, int index, int depth) {
                      "convertListPython: table has %lld keys but only %lld sequential "
                      "items; use luapython.list{} or luapython.dict{} to say what you mean",
                      (long long)total, (long long)len);
-            luaL_error(L, "%s", msg);
+            luapython_convert_error(L, "%s", msg);
             return NULL;
         }
 
@@ -219,15 +224,26 @@ PyObject* convertListPythonAt(lua_State* L, int index, int depth) {
         if (list == NULL) {
             return NULL;
         }
+        /* A PyList whose slots are still NULL is not a valid Python object:
+         * repr() and every other consumer dereference the slots directly.
+         * PyList_New() leaves them NULL, so fill the list before anything can
+         * observe it. Should a future error path unwind without filling every
+         * slot, the worst case is a list of Nones instead of a crash. */
+        for (Py_ssize_t i = 0; i < (Py_ssize_t)len; i++) {
+            Py_INCREF(Py_None);
+            PyList_SetItem(list, i, Py_None);   /* steals the new reference */
+        }
         for (lua_Integer i = 1; i <= len; i++) {
             lua_rawgeti(L, index, (int)i);
             PyObject* item = convertPythonAt(L, -1, depth + 1);
             lua_pop(L, 1);
             if (item == NULL) {
+                /* Drop the half-built list here instead of raising: a
+                 * luaL_error() would longjmp past this Py_DECREF. */
                 Py_DECREF(list);
                 return NULL;
             }
-            PyList_SetItem(list, i - 1, item);   /* steals */
+            PyList_SetItem(list, i - 1, item);   /* steals, releases the None */
         }
         return list;
     }
@@ -236,8 +252,9 @@ PyObject* convertListPythonAt(lua_State* L, int index, int depth) {
         Py_XINCREF(list);
         return list;
     }
-    luaL_error(L, "convertListPython: expected a table or list at index %d, got %s",
-               index, luaL_typename(L, index));
+    luapython_convert_error(L,
+        "convertListPython: expected a table or list at index %d, got %s",
+        index, luaL_typename(L, index));
     return NULL;
 }
 

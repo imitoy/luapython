@@ -27,6 +27,9 @@ static int set_binop(lua_State* L, const char* opname,
     if (left == NULL || right == NULL) {
         Py_XDECREF(left);
         Py_XDECREF(right);
+        if (luapython_convert_error_pending(L)) {
+            return luapython_throw_convert(L, NULL);
+        }
         return luaL_error(L, "set_%s: attempt to combine %s and %s",
                           opname, luaL_typename(L, -2), luaL_typename(L, -1));
     }
@@ -152,7 +155,7 @@ PyObject* convertSetPython(lua_State* L, int index) {
         Py_XINCREF(set);
         return set;
     }
-    luaL_error(L, "convertSetPython: expected a table or set at index %d, got %s",
-               index, luaL_typename(L, index));
+    luapython_convert_error(L, "convertSetPython: expected a table or set at index %d, got %s",
+                            index, luaL_typename(L, index));
     return NULL;
 }
