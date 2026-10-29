@@ -62,6 +62,8 @@ int pushIterLua(lua_State* L, PyObject* iter) {
         lua_setfield(L, -2, "__tostring");
         lua_pushcfunction(L, python_index);
         lua_setfield(L, -2, "__index");
+        lua_pushcfunction(L, python_object_eq);
+        lua_setfield(L, -2, "__eq");
         luapython_register_metatable(L);
     }
     lua_setmetatable(L, -2);

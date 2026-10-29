@@ -39,6 +39,10 @@ int pushModuleLua(lua_State* L, PyObject* obj) {
         lua_setfield(L, -2, "__gc");
         lua_pushcfunction(L, python_tostring);
         lua_setfield(L, -2, "__tostring");
+        /* Two handles to the same module are the same Python object; without
+         * __eq Lua compares the userdata addresses and answers false. */
+        lua_pushcfunction(L, python_object_eq);
+        lua_setfield(L, -2, "__eq");
         luapython_register_metatable(L);
     }
     lua_setmetatable(L, -2);

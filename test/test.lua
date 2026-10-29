@@ -282,6 +282,13 @@ ok(not (builtins.list({ 1 }) == foreign), "与外部 userdata 比较返回 false
 ok(not (foreign == builtins.list({ 1 })), "与外部 userdata 比较返回 false 而不是崩溃（右侧）")
 foreign:close()
 
+-- module / function 以前没有 __eq，同一个 Python 对象两次取到也判不等
+local os_a = luapython.import "os"
+local os_b = luapython.import "os"
+ok(os_a == os_b, "同一个 module 的两个句柄相等")
+ok(builtins.len == builtins.len, "同一个 callable 的两个句柄相等")
+ok(not (builtins.len == os_a), "不同类型的对象比较返回 false")
+
 --------------------------------------------------------------------------
 section("参数传递：尾部 nil 不再被吞掉")
 
