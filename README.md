@@ -59,7 +59,7 @@ local response = client.chat.completions.create({
     stream=false
 })
 
-print(response.choices[0].message.content)
+print(response.choices[1].message.content)
 ```
 
 7. Append `()` to the Python Iter Object.
@@ -74,7 +74,7 @@ local response = client.chat.completions.create({
 })
 
 for chunk in response() do
-    io.write(chunk.choices[0].delta.content)
+    io.write(chunk.choices[1].delta.content)
     io.flush()
 end
 ```
