@@ -303,7 +303,13 @@ local ss = builtins.set({ 1, 2 })
 ok(#(ss + { 3 }) == 3, "set + table 是并集", tostring(ss + { 3 }))
 ok(#(ss * { 2 }) == 1, "set * table 是交集", tostring(ss * { 2 }))
 ok(#(ss - { 1 }) == 1, "set - table 是差集", tostring(ss - { 1 }))
-ok((luapython.dict { a = 1 } + { b = 2 }).b == 2, "dict + table 合并")
+-- 字符串键的 table 本来就会走 dict，这条在旧代码上也能过
+ok((luapython.dict { a = 1 } + { b = 2 }).b == 2, "dict + 字符串键 table 合并")
+-- 真正被 convertDictPython 修好的是纯数字键 table：旧代码按 convertPython
+-- 把它变成 list，PyDict_Copy 随后报 "'list' object has no attribute 'keys'"
+local num_merged = luapython.dict { a = 1 } + { 10, 20 }
+ok(num_merged.a == 1 and num_merged[1] == 10 and num_merged[2] == 20,
+   "dict + 数字键 table 合并（旧代码会当成 list 报错）", tostring(num_merged))
 
 --------------------------------------------------------------------------
 section("环形 / 超深 table 不再崩溃")
