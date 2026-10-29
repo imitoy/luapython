@@ -130,7 +130,9 @@ int dict_newindex(lua_State* L) {
     }
     PyObject* dict = *(PyObject**)lua_touserdata(L, -3);
     PyObject* key = convertPython(L, -2);
-    PyObject* value = convertPython(L, -1);
+    /* Skip the value conversion when the key failed: the cause is already
+     * recorded and converting again can only allocate more. */
+    PyObject* value = key != NULL ? convertPython(L, -1) : NULL;
     if (key == NULL || value == NULL) {
         Py_XDECREF(key);
         Py_XDECREF(value);

@@ -82,7 +82,9 @@ int function_call(lua_State* L) {
         if (lua_type(L, -2) == LUA_TSTRING) {
             const char* key = lua_tostring(L, -2);
             PyObject* key_py = PyUnicode_FromString(key);
-            PyObject* value = convertPython(L, -1);
+            /* Skip the value conversion when the key allocation failed:
+             * piling more allocations onto an out-of-memory is pointless. */
+            PyObject* value = key_py != NULL ? convertPython(L, -1) : NULL;
             if (key_py == NULL || value == NULL) {
                 Py_XDECREF(key_py);
                 Py_XDECREF(value);
