@@ -241,6 +241,10 @@ int isPythonObject(lua_State* L, int index) {
  * handlers) exactly once. */
 static void luapython_flush_at_exit(void) {
     if (Py_IsInitialized()) {
+        /* Same ordering as python_finalize(): every handle we handed to Lua
+         * becomes dangling as soon as Py_Finalize() starts, and a __gc that
+         * runs during finalization must not try to Py_DECREF one of them. */
+        g_finalized = 1;
         Py_FinalizeEx();
     }
 }
