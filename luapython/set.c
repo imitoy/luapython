@@ -27,8 +27,8 @@ static int set_binop(lua_State* L, const char* opname,
     if (left == NULL || right == NULL) {
         Py_XDECREF(left);
         Py_XDECREF(right);
-        if (luapython_convert_error_pending(L)) {
-            return luapython_throw_convert(L, NULL);
+        if (luapython_convert_error_pending(L) || PyErr_Occurred()) {
+            return luapython_throw_convert(L, opname);
         }
         return luaL_error(L, "set_%s: attempt to combine %s and %s",
                           opname, luaL_typename(L, -2), luaL_typename(L, -1));

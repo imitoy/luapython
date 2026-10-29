@@ -117,8 +117,11 @@ int list_add(lua_State* L) {
          * longer longjmps, so nothing else will release these. */
         Py_XDECREF(left);
         Py_XDECREF(right);
-        if (luapython_convert_error_pending(L)) {
-            return luapython_throw_convert(L, NULL);
+        /* A conversion can also fail with a pending Python exception and no
+         * Lua-level message (e.g. an unhashable key in a nested dict). Report
+         * that instead of masking it with the generic "attempt to add". */
+        if (luapython_convert_error_pending(L) || PyErr_Occurred()) {
+            return luapython_throw_convert(L, "list_add");
         }
         return luaL_error(L, "list_add: attempt to add %s and %s",
                           luaL_typename(L, -2), luaL_typename(L, -1));

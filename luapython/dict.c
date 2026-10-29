@@ -152,8 +152,8 @@ int dict_add(lua_State* L) {
     if (left == NULL || right == NULL) {
         Py_XDECREF(left);
         Py_XDECREF(right);
-        if (luapython_convert_error_pending(L)) {
-            return luapython_throw_convert(L, NULL);
+        if (luapython_convert_error_pending(L) || PyErr_Occurred()) {
+            return luapython_throw_convert(L, "dict_add");
         }
         return luaL_error(L, "dict_add: attempt to merge %s and %s",
                           luaL_typename(L, -2), luaL_typename(L, -1));
@@ -182,8 +182,8 @@ int dict_mul(lua_State* L) {
     if (left == NULL || right == NULL) {
         Py_XDECREF(left);
         Py_XDECREF(right);
-        if (luapython_convert_error_pending(L)) {
-            return luapython_throw_convert(L, NULL);
+        if (luapython_convert_error_pending(L) || PyErr_Occurred()) {
+            return luapython_throw_convert(L, "dict_mul");
         }
         return luaL_error(L, "dict_mul: attempt to intersect %s and %s",
                           luaL_typename(L, -2), luaL_typename(L, -1));
@@ -218,8 +218,8 @@ int dict_sub(lua_State* L) {
     if (left == NULL || right == NULL) {
         Py_XDECREF(left);
         Py_XDECREF(right);
-        if (luapython_convert_error_pending(L)) {
-            return luapython_throw_convert(L, NULL);
+        if (luapython_convert_error_pending(L) || PyErr_Occurred()) {
+            return luapython_throw_convert(L, "dict_sub");
         }
         return luaL_error(L, "dict_sub: attempt to subtract %s from %s",
                           luaL_typename(L, -1), luaL_typename(L, -2));

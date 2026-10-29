@@ -317,6 +317,11 @@ ok((luapython.dict { a = 1 } + { b = 2 }).b == 2, "dict + 字符串键 table 合
 local num_merged = luapython.dict { a = 1 } + { 10, 20 }
 ok(num_merged.a == 1 and num_merged[1] == 10 and num_merged[2] == 20,
    "dict + 数字键 table 合并（旧代码会当成 list 报错）", tostring(num_merged))
+-- 嵌套 table 作 key 会变成不可哈希的 list：必须报出 Python 的 TypeError，
+-- 不能被 "dict_add: attempt to merge" 掩盖（那还会留下未清的 Python 异常）
+local ok_hash, err_hash = pcall(function() return luapython.dict { a = 1 } + { [ {} ] = 1 } end)
+ok(not ok_hash and tostring(err_hash):match("unhashable"),
+   "dict + 含不可哈希 key 的 table 报告 Python 错误", err_hash)
 
 --------------------------------------------------------------------------
 section("环形 / 超深 table 不再崩溃")
