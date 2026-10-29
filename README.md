@@ -125,16 +125,27 @@ current `.o` files were built against).
 - **Table conversion is recursive and depth-limited.** A self-referential
   table cannot be represented in Python, and nesting deeper than 200 levels is
   rejected; both raise a Lua error instead of overflowing the C stack.
-- **Indexing merges `getattr` and `__getitem__`.** Lua has one indexing
-  operator, so `obj.name` and `obj[key]` are the same expression and the two
-  Python protocols cannot be told apart. An attribute is tried first, then
-  `obj[key]`; either way an absent key yields `nil`. Numeric subscripts are
-  1-based like `luapython.list` (`o[1]` is the first element, `o[-1]` the last),
-  so `range(10)[1]` is `0`. That is what makes
-  `numpy.array{...}[1]`, `os.environ["PATH"]` and `range(10)[1]` work, and it
-  also makes `d.get(...)` reachable on a `luapython.dict` (item lookup still
-  wins, so a dict that really contains a `get` key is unaffected).
-  Dicts also support `for k, v in pairs(d)` on Lua 5.2+.
+- **Indexing: containers have their own rules, generic objects merge
+  `getattr` and `__getitem__`.** `luapython.list` and `luapython.tuple` use
+  Lua's 1-based subscripts (`l[1]` is the first element, `l[-1]` the last) and
+  do not expose Python attributes, so `luapython.list{1}.append` is not
+  available; `luapython.set` is not subscriptable at all. `luapython.dict`
+  looks the key up verbatim in Python (`zd[0]` is the entry whose key is `0`,
+  not the first entry) and only falls back to attribute lookup when the key is
+  absent, which is what makes `d.get(...)` work. For every *other* Python
+  object Lua has one indexing operator, so `obj.name` and `obj[key]` cannot be
+  told apart: an attribute is tried first, then `obj[key]`, and either way an
+  absent key yields `nil`. Numeric subscripts on that path are 1-based like
+  `luapython.list` (`o[1]` is the first element, `o[-1]` the last), so
+  `range(10)[1]` is `0`. That is what makes `numpy.array{...}[1]` and
+  `os.environ["PATH"]` work. `luapython.dict` also supports
+  `for k, v in pairs(d)` on Lua 5.2+; a `None` key is skipped, because `nil`
+  would end the generic `for` and hide every remaining entry.
+- **Equality is Python equality.** Containers, numbers, modules, functions and
+  generic objects compare with Python `==` instead of Lua's reference
+  comparison, so two handles to the same list (or to the same imported module)
+  compare equal, and comparing one of them with an unrelated value is `false`
+  rather than an error.
 - **One interpreter per process.** `luapython.load()` starts CPython; a second
   call (or a host that already embedded Python) raises instead of re-entering.
   `luapython.finalize()` releases it, after which every handle obtained earlier
