@@ -264,6 +264,57 @@ local shadow = luapython.dict { get = 7 }
 ok(shadow.get == 7, "同名 key 优先于方法", tostring(shadow.get))
 
 --------------------------------------------------------------------------
+section("写下标语义：setattr 与 __setitem__ 的路由和读方向一致")
+
+-- 写方向必须落在读方向取值的那个元素上（1-based 一致）。旧代码写数字键
+-- 走 setattr("1")，bytearray 直接报
+-- AttributeError: 'bytearray' object has no attribute '1' and no __dict__
+local ba = builtins.bytearray(3)
+local okw, errw = pcall(function() ba[1] = 65 end)
+ok(okw and ba[1] == 65, "bytearray[1] = 65 写到读 o[1] 取到的元素（1-based 对齐）",
+   tostring(errw) .. " / ba[1]=" .. tostring(ba[1]))
+local okw2, errw2 = pcall(function() ba[-1] = 67 end)
+ok(okw2 and ba[3] == 67 and ba[-1] == 67,
+   "bytearray[-1] = x 写到最后一个元素（负数语义与读一致）",
+   tostring(errw2) .. " / " .. tostring(ba[3]) .. "," .. tostring(ba[-1]))
+-- 读方向 o[0] 是 nil（Lua 序列没有 0 号元素），写方向不能静默丢数据
+local ok0, err0 = pcall(function() ba[0] = 1 end)
+ok(not ok0 and tostring(err0):match("out of range") ~= nil,
+   "bytearray[0] = x 报错而不是静默丢弃", err0)
+
+-- os.environ 只实现 __setitem__：旧代码 setattr 要么报错、要么把值写到
+-- 对象属性上，环境变量根本没设，Lua 侧读回属性还有成功假象，
+-- 必须从 Python 侧（getenv / mapping get）验证真的写进去了
+local ENVKEY = "LUAPYTHON_REVIEW_TEST"
+local okenv, errenv = pcall(function() osmod.environ[ENVKEY] = "hello" end)
+ok(okenv and osmod.environ[ENVKEY] == "hello",
+   "os.environ[KEY] = v 后 Lua 侧读回", tostring(errenv))
+ok(osmod.getenv(ENVKEY) == "hello",
+   "os.environ[KEY] = v 真的写进了环境变量（Python 侧 getenv）",
+   tostring(osmod.getenv(ENVKEY)))
+ok(osmod.environ.get(ENVKEY) == "hello",
+   "os.environ.get(KEY) 从映射 item 读到同一个值",
+   tostring(osmod.environ.get(ENVKEY)))
+-- 测试结束必须清理，避免污染进程环境
+pcall(function() osmod.environ.pop(ENVKEY) end)
+ok(osmod.getenv(ENVKEY) == nil, "清理后环境变量已删除", tostring(osmod.getenv(ENVKEY)))
+
+-- dict 的 item 写不回归：d[k] = v 仍然是 item（get() 从 item 侧读得到）
+local d2 = luapython.dict {}
+d2["k"] = 9
+ok(d2["k"] == 9 and d2.get("k") == 9, "dict[k] = v 仍是 item 写",
+   tostring(d2.get("k")))
+
+-- 普通对象属性写不回归：属性不存在时先试 __setitem__、失败回退 setattr，
+-- 属性已存在时走 setattr
+local types = luapython.import "types"
+local ns = types.SimpleNamespace()
+ns.attr = 5
+ok(ns.attr == 5, "对象新属性写入（回退 setattr）", tostring(ns.attr))
+ns.attr = 7
+ok(ns.attr == 7, "对象已有属性写入（走 setattr）", tostring(ns.attr))
+
+--------------------------------------------------------------------------
 section("容器 / 对象的相等语义")
 
 -- 没有 __eq 时 Lua 按引用比较，两个相等的 Python 容器以前恒为 false
