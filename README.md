@@ -142,15 +142,26 @@ current `.o` files were built against).
   absent key yields `nil`. Numeric subscripts on that path are 1-based like
   `luapython.list` (`o[1]` is the first element, `o[-1]` the last), so
   `range(10)[1]` is `0`. That is what makes `numpy.array{...}[1]` and
-  `os.environ["PATH"]` work. Assignment on that path follows the same routing,
-  so a write lands exactly where the matching read looks the key up: numeric
-  subscripts go to `__setitem__` with the very same 1-based mapping (`ba[1] =
-  65` writes the element `ba[1]` reads back; `o[0] = v` is an error, because a
-  Lua sequence has no element 0), and string keys prefer `setattr` when the
-  attribute exists (falling back to `__setitem__` when setattr refuses the key)
-  or `__setitem__` when it does not (falling back to `setattr` when the object
-  rejects subscripts). Hence `os.environ["X"] = "y"` really sets the
-  environment variable while `obj.attr = v` keeps behaving like Python.
+  `os.environ["PATH"]` work. Assignment on that path is item-first, the
+  intuitive reading of `o[k] = v`: numeric subscripts go to `__setitem__` with
+  the very same 1-based mapping (`ba[1] = 65` writes the element `ba[1]` reads
+  back; `o[0] = v` is an error, because a Lua sequence has no element 0), and
+  string keys go to `__setitem__` first, falling back to `setattr` only when
+  the object has no item-assignment protocol at all (the failure is an
+  `AttributeError`, or a `TypeError` saying the object is not subscriptable /
+  does not support item assignment). Any other error is item semantics
+  (unhashable key, wrong value type, ...) and surfaces unchanged instead of
+  being masked by a `setattr` attempt. Hence `os.environ["X"] = "y"` really
+  sets the environment variable -- even when `X` collides with a mapping
+  method such as `get`, which an earlier getattr-probe routing used to
+  overwrite with the value -- while `obj.attr = v` keeps behaving like Python.
+  Objects that support both items and attributes therefore have a deliberate
+  asymmetry: a write lands in the item (Python's `o[k] = v`) while the
+  matching read prefers the attribute, so `os.environ["get"] = "x"` sets the
+  variable but `os.environ["get"]` still reads the `get` method; use Python
+  `setattr` when the attribute is what you want. If both the item write and
+  the `setattr` fallback fail, the error reports the item-side exception and
+  the `setattr` failure together.
   `luapython.dict` also supports
   `for k, v in pairs(d)` on Lua 5.2+; a `None` key is skipped, because `nil`
   would end the generic `for` and hide every remaining entry.

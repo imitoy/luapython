@@ -264,9 +264,9 @@ local shadow = luapython.dict { get = 7 }
 ok(shadow.get == 7, "同名 key 优先于方法", tostring(shadow.get))
 
 --------------------------------------------------------------------------
-section("写下标语义：setattr 与 __setitem__ 的路由和读方向一致")
+section("写下标语义：item 优先、属性兜底（不再腐蚀 os.environ）")
 
--- 写方向必须落在读方向取值的那个元素上（1-based 一致）。旧代码写数字键
+-- 数字键写方向必须落在读方向取值的那个元素上（1-based 一致）。旧代码写数字键
 -- 走 setattr("1")，bytearray 直接报
 -- AttributeError: 'bytearray' object has no attribute '1' and no __dict__
 local ba = builtins.bytearray(3)
@@ -299,20 +299,114 @@ ok(osmod.environ.get(ENVKEY) == "hello",
 pcall(function() osmod.environ.pop(ENVKEY) end)
 ok(osmod.getenv(ENVKEY) == nil, "清理后环境变量已删除", tostring(osmod.getenv(ENVKEY)))
 
+-- 字符串键写路由（本次缺陷的回归锚点）：item 优先。旧代码用 getattr 探测
+-- 路由，os.environ["get"] 命中 MutableMapping.get 方法后被改道成 setattr：
+-- 环境变量没设上，get 方法还被字符串覆盖，之后所有 os.getenv / environ.get
+-- 全部 TypeError: 'str' object is not callable，而 Lua 侧读回 "collide"
+-- 造成成功的假象。environ 有 __dict__，setattr 会"成功"，所以只能从
+-- Python 侧（getenv / mapping get）验证真的写进了环境变量。
+local function try_env_set(key, value)
+    return pcall(function() osmod.environ[key] = value end)
+end
+local function try_env_get(name)
+    -- environ.get 是 mapping 方法；方法被腐蚀时这里会直接抛 TypeError
+    return pcall(function() return osmod.getenv(name) end)
+end
+
+local okc, errc = try_env_set("get", "collide")
+ok(okc, "os.environ['get'] = 'collide' 写入不报错", errc)
+local okv, valv = try_env_get("get")
+ok(okv and valv == "collide",
+   "os.environ['get'] 真的写进了环境变量（Python 侧 os.getenv 读到 'collide'）",
+   okv and tostring(valv) or tostring(valv))
+local okm, valm = pcall(function() return osmod.environ.get("get") end)
+ok(okm and valm == "collide",
+   "os.environ.get 方法未被覆盖，仍从 item 读到同一个值",
+   okm and tostring(valm) or tostring(valm))
+local okp, valp = try_env_get("PATH")
+ok(okp and valp ~= nil,
+   "os.getenv 仍可正常调用（不再 TypeError: 'str' object is not callable）",
+   okp and tostring(valp) or tostring(valp))
+-- 已知且接受的语义：读方向 attr 优先不变，Lua 侧 environ["get"] 读到的
+-- 仍是 get 方法本身（要写/读属性请走 Python 侧）
+local oksh, valsh = pcall(function() return osmod.environ["get"] end)
+ok(oksh and valsh == osmod.environ.get,
+   "读方向 attr 优先不变：Lua 侧 environ['get'] 读到的是 get 方法",
+   tostring(valsh))
+
+-- 同一模式再抽 keys：映射方法名同样不能被腐蚀
+local okc2, errc2 = try_env_set("keys", "collide2")
+ok(okc2, "os.environ['keys'] = 'collide2' 写入不报错", errc2)
+local okv2, valv2 = try_env_get("keys")
+ok(okv2 and valv2 == "collide2",
+   "os.environ['keys'] 真的写进了环境变量（os.getenv 读到 'collide2'）",
+   okv2 and tostring(valv2) or tostring(valv2))
+local okk = pcall(function() return osmod.environ.keys() end)
+ok(okk, "os.environ.keys 方法未被破坏（仍可调用）")
+
+-- 测试结束必须清理，避免污染进程环境
+pcall(function() osmod.environ.pop("get") end)
+pcall(function() osmod.environ.pop("keys") end)
+local okcl, vcl = try_env_get("get")
+local okcl2, vcl2 = try_env_get("keys")
+ok(okcl and vcl == nil and okcl2 and vcl2 == nil,
+   "清理后 get/keys 环境变量已删除",
+   tostring(vcl) .. "," .. tostring(vcl2))
+
+-- TypeError 不回退：environ 的 __setitem__ 只接受字符串值，传数字是 item
+-- 语义错误，绝不能回退 setattr（environ 有 __dict__，回退会把 5 写成同名
+-- 属性，再次静默腐蚀对象）
+local ENVNUM = "LUAPYTHON_REVIEW_NUM"
+local okn, errn = pcall(function() osmod.environ[ENVNUM] = 5 end)
+ok(not okn and tostring(errn):match("TypeError") ~= nil,
+   "os.environ[KEY] = 5 报出 Python 的 TypeError（不回退 setattr）", errn)
+local oknv, numv = pcall(function() return osmod.environ[ENVNUM] end)
+local okng, numg = try_env_get(ENVNUM)
+ok(oknv and numv == nil and okng and numg == nil,
+   "失败的写入没有留下属性或环境变量（无腐蚀）",
+   tostring(numv) .. " / " .. tostring(numg))
+
+-- item 语义错误一律原样报出：bytearray 的字符串下标是 item 语义错误，
+-- 不能被 setattr 的 AttributeError 掩盖成误导消息
+local okb, errb = pcall(function() ba["k"] = 1 end)
+ok(not okb and tostring(errb):match("indices must be integers") ~= nil,
+   "bytearray['k'] = 1 报 item 语义的 TypeError 而不是误导消息", errb)
+
 -- dict 的 item 写不回归：d[k] = v 仍然是 item（get() 从 item 侧读得到）
 local d2 = luapython.dict {}
 d2["k"] = 9
 ok(d2["k"] == 9 and d2.get("k") == 9, "dict[k] = v 仍是 item 写",
    tostring(d2.get("k")))
+-- 不可哈希 key 是 item 语义错误（dict_newindex 路径），必须报 Python 原文
+local d3 = luapython.dict {}
+local okh, errh = pcall(function() d3[{}] = 1 end)
+ok(not okh and tostring(errh):match("unhashable") ~= nil,
+   "dict[{}] = 1 报 unhashable TypeError（不回退、不误导）", errh)
 
--- 普通对象属性写不回归：属性不存在时先试 __setitem__、失败回退 setattr，
--- 属性已存在时走 setattr
+-- 普通对象属性写不回归：无 __setitem__ 的对象先试 item 写、失败回退
+-- setattr，obj.attr = v 仍像 Python 一样工作
 local types = luapython.import "types"
 local ns = types.SimpleNamespace()
 ns.attr = 5
 ok(ns.attr == 5, "对象新属性写入（回退 setattr）", tostring(ns.attr))
 ns.attr = 7
-ok(ns.attr == 7, "对象已有属性写入（走 setattr）", tostring(ns.attr))
+ok(ns.attr == 7, "对象已有属性覆盖写入（同样回退 setattr）", tostring(ns.attr))
+
+-- 回退也失败：消息必须同时给出 item 侧原始异常和 setattr 的最终失败原因
+local plain = builtins.object()
+local okx, errx = pcall(function() plain.x = 1 end)
+ok(not okx, "无 __setitem__ 且无 __dict__ 的对象写入报错而不是静默丢弃", errx)
+ok(tostring(errx):match("does not support item assignment") ~= nil,
+   "报错含 item 侧原始异常（python_newindex: TypeError: ...）", errx)
+ok(tostring(errx):match("AttributeError") ~= nil,
+   "报错含 setattr 回退的最终失败原因", errx)
+
+-- 双支持对象要写属性，从 Python 侧 setattr（写语义差异的出口）
+builtins.setattr(osmod.environ, "LUAPYTHON_REVIEW_ATTR", "attrvalue")
+local okat, valat = pcall(function() return osmod.environ["LUAPYTHON_REVIEW_ATTR"] end)
+ok(okat and valat == "attrvalue",
+   "Python 侧 setattr 写的才是属性（读方向 attr 优先能读回）", tostring(valat))
+pcall(function() builtins.delattr(osmod.environ, "LUAPYTHON_REVIEW_ATTR") end)
 
 --------------------------------------------------------------------------
 section("容器 / 对象的相等语义")
