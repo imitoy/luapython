@@ -121,7 +121,11 @@ current `.o` files were built against).
 - **Keyword arguments are a heuristic.** A trailing table is treated as
   keyword arguments when its keys are mostly strings. Pass containers as
   `luapython.dict{...}` / `luapython.list{...}` to be explicit, and note that a
-  table mixing array and named keys is rejected rather than silently truncated.
+  table mixing array and named keys is rejected rather than silently truncated
+  -- but only on the ordinary table-conversion path. The keyword-argument path
+  is the exception: a trailing table read as keyword arguments drops its array
+  part silently, so `builtins.dict{1, a="x"}` yields `{'a': 'x'}` and the
+  numeric entry is lost.
 - **Table conversion is recursive and depth-limited.** A self-referential
   table cannot be represented in Python, and nesting deeper than 200 levels is
   rejected; both raise a Lua error instead of overflowing the C stack.
@@ -138,7 +142,16 @@ current `.o` files were built against).
   absent key yields `nil`. Numeric subscripts on that path are 1-based like
   `luapython.list` (`o[1]` is the first element, `o[-1]` the last), so
   `range(10)[1]` is `0`. That is what makes `numpy.array{...}[1]` and
-  `os.environ["PATH"]` work. `luapython.dict` also supports
+  `os.environ["PATH"]` work. Assignment on that path follows the same routing,
+  so a write lands exactly where the matching read looks the key up: numeric
+  subscripts go to `__setitem__` with the very same 1-based mapping (`ba[1] =
+  65` writes the element `ba[1]` reads back; `o[0] = v` is an error, because a
+  Lua sequence has no element 0), and string keys prefer `setattr` when the
+  attribute exists (falling back to `__setitem__` when setattr refuses the key)
+  or `__setitem__` when it does not (falling back to `setattr` when the object
+  rejects subscripts). Hence `os.environ["X"] = "y"` really sets the
+  environment variable while `obj.attr = v` keeps behaving like Python.
+  `luapython.dict` also supports
   `for k, v in pairs(d)` on Lua 5.2+; a `None` key is skipped, because `nil`
   would end the generic `for` and hide every remaining entry.
 - **Equality is Python equality.** Containers, numbers, modules, functions and
