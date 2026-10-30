@@ -412,16 +412,6 @@ int python_gc(lua_State* L) {
     return 0;
 }
 
-/* lua_tostring() happily converts numbers but returns NULL for tables,
- * booleans and nil - which used to be handed straight to CPython. */
-static const char* key_from_lua(lua_State* L, int index) {
-    int type = lua_type(L, index);
-    if (type != LUA_TSTRING && type != LUA_TNUMBER) {
-        return NULL;
-    }
-    return lua_tostring(L, index);
-}
-
 /* Shared __index implementation. Lua has a single indexing operator, so
  * `o.k` and `o[k]` are indistinguishable here and Python's getattr and
  * __getitem__ protocols have to be merged: try the attribute first, then the
@@ -546,12 +536,37 @@ int python_object_eq(lua_State* L) {
     return 1;
 }
 
+/* __newindex for generic Python objects. Lua has one assignment operator, so
+ * `o.k = v` and `o[k] = v` are indistinguishable here and the write has to
+ * merge Python's setattr and __setitem__ protocols the same way
+ * luapython_index_shared() merges getattr and __getitem__ on the read side.
+ * A write must land exactly where the matching read looks the key up, and it
+ * must never be lost silently: routing numeric keys to setattr made
+ * `ba[1] = 65` raise "no attribute '1'" while `ba[1]` read the first element,
+ * and `os.environ["X"] = "y"` "succeeded" without setting the variable.
+ *
+ * Routing, mirroring the read side:
+ *   - numeric key: __setitem__ only (no attribute name can start with a digit,
+ *     which is why the read side skips getattr for numbers too), with the
+ *     very same 1-based mapping: Lua o[1] is element 0, o[-1] keeps Python's
+ *     meaning. Lua has no element 0, so o[0] = v is an error instead of a
+ *     silent no-op.
+ *   - string key: probe with getattr (PyObject_GetAttr, exactly like the read
+ *     side; PyObject_GetAttrString is just a wrapper around it). If the
+ *     attribute exists, prefer setattr and fall back to __setitem__ when
+ *     setattr refuses the key (AttributeError/TypeError: read-only method,
+ *     no __dict__, ...). If the attribute does not exist, prefer __setitem__
+ *     and fall back to setattr when the object rejects subscripts
+ *     (TypeError/KeyError), so `obj.newattr = v` still creates an attribute
+ *     and `os.environ["X"] = "y"` really sets the environment variable.
+ * Every failed probe clears its exception before the next attempt; nothing
+ * may leak into the next Python call. */
 int python_newindex(lua_State* L) {
     if (!isPythonObject(L, -3)) {
         return luaL_error(L, "python_newindex: attempt to index a %s value", luaL_typename(L, -3));
     }
-    const char* key = key_from_lua(L, -2);
-    if (key == NULL) {
+    int key_type = lua_type(L, -2);
+    if (key_type != LUA_TSTRING && key_type != LUA_TNUMBER) {
         return luaL_error(L, "python_newindex: attribute name must be a string, got %s",
                           luaL_typename(L, -2));
     }
@@ -563,10 +578,76 @@ int python_newindex(lua_State* L) {
     if (value == NULL) {
         return luapython_throw_convert(L, "python_newindex: cannot convert value");
     }
-    int result = PyObject_SetAttrString(obj, key, value);
+
+    int result;
+    if (key_type == LUA_TNUMBER) {
+        /* Same 1-based mapping as luapython_index_shared(): o[1] writes the
+         * element o[1] reads back, o[-1] the last one. */
+        lua_Number num = lua_tonumber(L, -2);
+        if (num == 0) {
+            Py_DECREF(value);
+            return luaL_error(L, "python_newindex: index 0 is out of range "
+                              "(Lua subscripts are 1-based)");
+        }
+        if (num > 0) {
+            num -= 1;
+        }
+        PyObject* key;
+        if (num > -9223372036854775808.0 && num < 9223372036854775808.0 &&
+            num == (lua_Number)(long long)num) {
+            key = PyLong_FromLongLong((long long)num);
+        } else {
+            key = PyFloat_FromDouble((double)num);
+        }
+        if (key == NULL) {
+            Py_DECREF(value);
+            return luapython_throw_convert(L, "python_newindex: cannot convert index");
+        }
+        result = PyObject_SetItem(obj, key, value);
+        Py_DECREF(key);
+    } else {
+        size_t len;
+        const char* text = lua_tolstring(L, -2, &len);
+        PyObject* key = PyUnicode_FromStringAndSize(text, (Py_ssize_t)len);
+        if (key == NULL) {
+            Py_DECREF(value);
+            return luapython_throw_convert(L, "python_newindex: cannot convert key");
+        }
+        PyObject* probe = PyObject_GetAttr(obj, key);
+        if (probe != NULL) {
+            /* The attribute exists: prefer setattr so `o.attr = v` keeps
+             * behaving like Python, fall back to __setitem__ when setattr
+             * refuses the key. */
+            Py_DECREF(probe);
+            result = PyObject_SetAttr(obj, key, value);
+            if (result != 0 &&
+                (PyErr_ExceptionMatches(PyExc_AttributeError) ||
+                 PyErr_ExceptionMatches(PyExc_TypeError))) {
+                PyErr_Clear();
+                result = PyObject_SetItem(obj, key, value);
+            }
+        } else if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            /* No such attribute: prefer __setitem__ so subscript-only
+             * mappings (os.environ, ...) actually store the value, fall back
+             * to setattr when the object rejects subscripts. */
+            PyErr_Clear();
+            result = PyObject_SetItem(obj, key, value);
+            if (result != 0 &&
+                (PyErr_ExceptionMatches(PyExc_TypeError) ||
+                 PyErr_ExceptionMatches(PyExc_KeyError))) {
+                PyErr_Clear();
+                result = PyObject_SetAttr(obj, key, value);
+            }
+        } else {
+            Py_DECREF(key);
+            Py_DECREF(value);
+            return luapython_throw(L, "python_newindex");
+        }
+        Py_DECREF(key);
+    }
     Py_DECREF(value);
     if (result != 0) {
-        return luapython_throw(L, key);
+        return luapython_throw(L, "python_newindex");
     }
     return 0;
 }
