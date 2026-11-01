@@ -146,22 +146,23 @@ current `.o` files were built against).
   intuitive reading of `o[k] = v`: numeric subscripts go to `__setitem__` with
   the very same 1-based mapping (`ba[1] = 65` writes the element `ba[1]` reads
   back; `o[0] = v` is an error, because a Lua sequence has no element 0), and
-  string keys go to `__setitem__` first, falling back to `setattr` only when
-  the object has no item-assignment protocol at all (the failure is an
-  `AttributeError`, or a `TypeError` saying the object is not subscriptable /
-  does not support item assignment). Any other error is item semantics
-  (unhashable key, wrong value type, ...) and surfaces unchanged instead of
-  being masked by a `setattr` attempt. Hence `os.environ["X"] = "y"` really
-  sets the environment variable -- even when `X` collides with a mapping
-  method such as `get`, which an earlier getattr-probe routing used to
-  overwrite with the value -- while `obj.attr = v` keeps behaving like Python.
+  string keys use `__setitem__` whenever the type actually implements item
+  assignment (it exposes an `__setitem__` slot), and `setattr` only when the
+  type has no item write slot at all. Protocol detection is done on the type,
+  not by inspecting the exception: a user `__setitem__` may legitimately raise
+  `AttributeError`, and a proxy may forward the inner object's `TypeError`, so
+  an exception never means "no item protocol". Every `__setitem__` error is
+  therefore item semantics (unhashable key, wrong value type, ...) and surfaces
+  unchanged instead of being masked by a `setattr` attempt. Hence
+  `os.environ["X"] = "y"` really sets the environment variable -- even when
+  `X` collides with a mapping method such as `get`, which an earlier
+  getattr-probe routing used to overwrite with the value -- while
+  `obj.attr = v` keeps behaving like Python.
   Objects that support both items and attributes therefore have a deliberate
   asymmetry: a write lands in the item (Python's `o[k] = v`) while the
   matching read prefers the attribute, so `os.environ["get"] = "x"` sets the
   variable but `os.environ["get"]` still reads the `get` method; use Python
-  `setattr` when the attribute is what you want. If both the item write and
-  the `setattr` fallback fail, the error reports the item-side exception and
-  the `setattr` failure together.
+  `setattr` when the attribute is what you want.
   `luapython.dict` also supports
   `for k, v in pairs(d)` on Lua 5.2+; a `None` key is skipped, because `nil`
   would end the generic `for` and hide every remaining entry.

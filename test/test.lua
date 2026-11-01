@@ -264,7 +264,7 @@ local shadow = luapython.dict { get = 7 }
 ok(shadow.get == 7, "同名 key 优先于方法", tostring(shadow.get))
 
 --------------------------------------------------------------------------
-section("写下标语义：item 优先、属性兜底（不再腐蚀 os.environ）")
+section("写下标语义：按类型检测 item 协议、无 slot 才走 setattr（不再腐蚀 os.environ）")
 
 -- 数字键写方向必须落在读方向取值的那个元素上（1-based 一致）。旧代码写数字键
 -- 走 setattr("1")，bytearray 直接报
@@ -383,23 +383,74 @@ local okh, errh = pcall(function() d3[{}] = 1 end)
 ok(not okh and tostring(errh):match("unhashable") ~= nil,
    "dict[{}] = 1 报 unhashable TypeError（不回退、不误导）", errh)
 
--- 普通对象属性写不回归：无 __setitem__ 的对象先试 item 写、失败回退
--- setattr，obj.attr = v 仍像 Python 一样工作
+-- 普通对象属性写不回归：类型没有 item 写 slot 时直接走 setattr，
+-- obj.attr = v 仍像 Python 一样工作
 local types = luapython.import "types"
 local ns = types.SimpleNamespace()
 ns.attr = 5
-ok(ns.attr == 5, "对象新属性写入（回退 setattr）", tostring(ns.attr))
+ok(ns.attr == 5, "对象新属性写入（无 item 协议 → setattr）", tostring(ns.attr))
 ns.attr = 7
-ok(ns.attr == 7, "对象已有属性覆盖写入（同样回退 setattr）", tostring(ns.attr))
+ok(ns.attr == 7, "对象已有属性覆盖写入（无 item 协议 → setattr）", tostring(ns.attr))
 
--- 回退也失败：消息必须同时给出 item 侧原始异常和 setattr 的最终失败原因
+-- 无 item 协议且无 __dict__：setattr 本身失败，报的是 setattr 的
+-- AttributeError，而不是再拼一段 item 侧异常（类型层面已确定没有 item 协议，
+-- 根本不会调用 PyObject_SetItem）
 local plain = builtins.object()
 local okx, errx = pcall(function() plain.x = 1 end)
-ok(not okx, "无 __setitem__ 且无 __dict__ 的对象写入报错而不是静默丢弃", errx)
-ok(tostring(errx):match("does not support item assignment") ~= nil,
-   "报错含 item 侧原始异常（python_newindex: TypeError: ...）", errx)
+ok(not okx, "无 item 协议且无 __dict__ 的对象写入报错而不是静默丢弃", errx)
 ok(tostring(errx):match("AttributeError") ~= nil,
-   "报错含 setattr 回退的最终失败原因", errx)
+   "报错是 setattr 的 AttributeError", errx)
+ok(tostring(errx):match("does not support item assignment") == nil,
+   "类型没有 item slot 时不再先撞一次 item 写的 TypeError", errx)
+
+-- 类型层面协议检测的回归锚点一：自定义类的 __setitem__ 抛 AttributeError。
+-- 旧实现把 AttributeError 一律当成“没有 item 协议”，于是 m["get"] = 99
+-- 被静默改道到 setattr，覆盖了实例方法 get，Lua 侧还显示成功。
+local clsns = builtins.dict {}
+builtins.exec([[
+class RaisingSetItem:
+    def __init__(self):
+        self.d = {}
+    def __setitem__(self, key, value):
+        raise AttributeError("item store refused by user code")
+    def get(self, key):
+        return self.d.get(key)
+]], clsns)
+local RaisingSetItem = clsns["RaisingSetItem"]
+local m = RaisingSetItem()
+local okra, erra = pcall(function() m["get"] = 99 end)
+ok(not okra and tostring(erra):match("AttributeError") ~= nil,
+   "__setitem__ 抛 AttributeError 时写入必须报错（不得改道 setattr）", erra)
+local okmg, valmg = pcall(function() return m.get("x") end)
+ok(okmg and valmg == nil,
+   "m.get 方法未被覆盖，仍可调用", okmg and tostring(valmg) or tostring(valmg))
+local mdict = builtins.getattr(m, "__dict__")
+ok(builtins.len(mdict) == 1,
+   "m.__dict__ 里只有 d、没有被写入的 get 键", tostring(builtins.len(mdict)))
+ok(builtins.len(m.d) == 0, "Python 侧 len(m.d) == 0（item 存储未变）",
+   tostring(builtins.len(m.d)))
+
+-- 类型层面协议检测的回归锚点二：代理类把内层 tuple 的 TypeError 原样转发，
+-- 文案含 "does not support item assignment"。旧实现按文案白名单命中后
+-- 改道 setattr，内层 tuple 未变、代理实例却多出一个属性。
+local proxyns = builtins.dict {}
+builtins.exec([[
+class TupleProxy:
+    def __init__(self):
+        self.inner = ()
+        self.d = {}
+    def __setitem__(self, key, value):
+        self.inner[0] = value
+]], proxyns)
+local TupleProxy = proxyns["TupleProxy"]
+local px = TupleProxy()
+local okpx, errpx = pcall(function() px["k"] = 1 end)
+ok(not okpx and tostring(errpx):match("does not support item assignment") ~= nil,
+   "代理转发的 item TypeError 必须原样报出（不得改道 setattr）", errpx)
+ok(builtins.len(px.inner) == 0, "内层 tuple 未被修改", tostring(builtins.len(px.inner)))
+ok(not builtins.hasattr(px, "k"), "代理实例没有新增属性 k")
+ok(builtins.len(builtins.getattr(px, "__dict__")) == 2,
+   "代理实例 __dict__ 仍只有 inner/d", tostring(builtins.len(builtins.getattr(px, "__dict__"))))
 
 -- 双支持对象要写属性，从 Python 侧 setattr（写语义差异的出口）
 builtins.setattr(osmod.environ, "LUAPYTHON_REVIEW_ATTR", "attrvalue")

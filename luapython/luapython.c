@@ -536,78 +536,27 @@ int python_object_eq(lua_State* L) {
     return 1;
 }
 
-/* Render the exception (type/value as returned by PyErr_Fetch, normalized on
- * demand) into buf as "Name: message". Formatting failures are swallowed and
- * any error state they leave behind is cleared: this helper must not disturb
- * the caller's view of the interpreter. */
-static void exception_text(char* buf, size_t size, PyObject* type, PyObject* value) {
-    size_t used = 0;
-
-    buf[0] = '\0';
-    if (type != NULL) {
-        PyObject* name = PyObject_GetAttrString(type, "__name__");
-        if (name != NULL) {
-            msg_append_unicode(buf, size, &used, name);
-            Py_DECREF(name);
-        }
-    }
-    if (value != NULL) {
-        PyObject* text = PyObject_Str(value);
-        if (text != NULL) {
-            msg_appendf(buf, size, &used, ": ");
-            msg_append_unicode(buf, size, &used, text);
-            Py_DECREF(text);
-        }
-    }
-    PyErr_Clear();
-}
-
-/* Render the pending Python exception into buf as "Name: message" and consume
- * it. Returns 0 when no exception is pending (buf is then empty). */
-static int take_pending_exception(char* buf, size_t size) {
-    PyObject *type = NULL, *value = NULL, *tb = NULL;
-
-    buf[0] = '\0';
-    if (!PyErr_Occurred()) {
+/* True when the type implements item assignment, i.e. PyObject_SetItem has a
+ * real slot to call. Detected on the type rather than by sniffing the
+ * exception: a user __setitem__ may raise AttributeError, or a proxy may
+ * forward the inner object's TypeError, and treating either as "no protocol"
+ * silently reroutes the write to setattr (overwriting same-named methods).
+ *
+ * Py_LIMITED_API keeps PyTypeObject opaque, so tp_as_mapping/tp_as_sequence
+ * cannot be read here, and PyType_GetSlot() refuses static types. CPython
+ * installs a __setitem__ wrapper on every type that fills either
+ * mp_ass_subscript or sq_ass_item, so looking the attribute up on the type
+ * (never on the instance: special methods are resolved on the type) is the
+ * stable-ABI equivalent of probing those two slots. */
+static int has_item_assignment(PyObject* obj) {
+    PyObject* type = (PyObject*)Py_TYPE(obj);
+    int found = PyObject_HasAttrString(type, "__setitem__");
+    if (found < 0) {
+        /* A metaclass __getattr__ may fail; that is not an item protocol. */
+        PyErr_Clear();
         return 0;
     }
-    PyErr_Fetch(&type, &value, &tb);
-    PyErr_NormalizeException(&type, &value, &tb);
-    exception_text(buf, size, type, value);
-    Py_XDECREF(type);
-    Py_XDECREF(value);
-    Py_XDECREF(tb);
-    return 1;
-}
-
-/* True when the pending exception means the object has no item-assignment
- * protocol at all, so falling back to setattr cannot hide a real item error.
- * AttributeError and the "not subscriptable" / "does not support item
- * assignment" TypeErrors that PyObject_SetItem raises on its own qualify;
- * every other TypeError (unhashable key, wrong value type, a real __setitem__
- * rejecting the entry, ...) is item semantics and must surface unchanged -
- * os.environ only accepts str values, so falling back on that TypeError would
- * silently turn `environ[k] = 5` into a corrupting setattr. The pending
- * exception is left exactly as found. */
-static int setitem_unsupported(void) {
-    char text[256];
-    PyObject *type = NULL, *value = NULL, *tb = NULL;
-
-    if (!PyErr_Occurred()) {
-        return 0;
-    }
-    if (PyErr_ExceptionMatches(PyExc_AttributeError)) {
-        return 1;
-    }
-    if (!PyErr_ExceptionMatches(PyExc_TypeError)) {
-        return 0;
-    }
-    PyErr_Fetch(&type, &value, &tb);
-    PyErr_NormalizeException(&type, &value, &tb);
-    exception_text(text, sizeof text, type, value);
-    PyErr_Restore(type, value, tb);
-    return strstr(text, "not subscriptable") != NULL ||
-           strstr(text, "does not support item assignment") != NULL;
+    return found;
 }
 
 /* __newindex for generic Python objects. Lua has one assignment operator, so
@@ -627,15 +576,14 @@ static int setitem_unsupported(void) {
  *     the very same 1-based mapping: Lua o[1] is element 0, o[-1] keeps
  *     Python's meaning. Lua has no element 0, so o[0] = v is an error instead
  *     of a silent no-op.
- *   - string key: __setitem__ first. When the object has no item-assignment
- *     protocol at all - the failure is AttributeError, or a TypeError saying
- *     the object is not subscriptable / does not support item assignment -
- *     clear it and fall back to setattr, so `obj.attr = v` keeps behaving
- *     like Python. Any other failure is item semantics (unhashable key, wrong
- *     value type, ...) and surfaces unchanged instead of being masked by a
- *     setattr attempt. When the fallback fails too, the error reports both
- *     the item-side exception and the setattr failure, so the final cause is
- *     visible.
+ *   - string key: when the type implements item assignment, __setitem__ only
+ *     and its errors surface as-is. There is no fallback on AttributeError or
+ *     on a "not subscriptable" TypeError: both can come from a real user
+ *     __setitem__ (or a proxy forwarding the inner object's failure), so
+ *     rerouting them would write an attribute instead and overwrite
+ *     same-named methods. Only a type with no item write slot at all (no
+ *     mp_ass_subscript, no sq_ass_item) falls back to setattr, so
+ *     `obj.attr = v` keeps behaving like Python.
  *
  * Deliberate asymmetry with the read side on objects that support both items
  * and attributes: the write lands in the item while the read prefers the
@@ -643,8 +591,9 @@ static int setitem_unsupported(void) {
  * `os.environ["get"]` still reads the get() method. Use Python setattr to
  * write an attribute.
  *
- * Every failed probe clears its exception before the next attempt; nothing
- * may leak into the next Python call. */
+ * Only one write is attempted per call, so no exception can leak from a
+ * probe into the next Python call; a failing SetItem leaves its error for
+ * luapython_throw() below. */
 int python_newindex(lua_State* L) {
     if (!isPythonObject(L, -3)) {
         return luaL_error(L, "python_newindex: attempt to index a %s value", luaL_typename(L, -3));
@@ -697,37 +646,12 @@ int python_newindex(lua_State* L) {
             Py_DECREF(value);
             return luapython_throw_convert(L, "python_newindex: cannot convert key");
         }
-        /* Item first (Python's o[k] = v), attribute only when the object
-         * cannot do item assignment at all. */
-        result = PyObject_SetItem(obj, key, value);
-        if (result != 0 && setitem_unsupported()) {
-            /* No item-assignment protocol: fall back to plain attribute
-             * assignment. Stash the SetItem exception instead of clearing it
-             * so a failed fallback can report both attempts. */
-            PyObject *e_type = NULL, *e_value = NULL, *e_tb = NULL;
-            PyErr_Fetch(&e_type, &e_value, &e_tb);
+        /* Item semantics when the type has the slot, plain attribute
+         * otherwise; never reroute a real item error to setattr. */
+        if (has_item_assignment(obj)) {
+            result = PyObject_SetItem(obj, key, value);
+        } else {
             result = PyObject_SetAttr(obj, key, value);
-            if (result != 0) {
-                char item_err[512];
-                char attr_err[512];
-                /* Consume the setattr failure first: exception_text() clears
-                 * the interpreter's error state while formatting, which would
-                 * wipe a still-pending exception. */
-                take_pending_exception(attr_err, sizeof attr_err);
-                PyErr_NormalizeException(&e_type, &e_value, &e_tb);
-                exception_text(item_err, sizeof item_err, e_type, e_value);
-                Py_XDECREF(e_type);
-                Py_XDECREF(e_value);
-                Py_XDECREF(e_tb);
-                Py_DECREF(key);
-                Py_DECREF(value);
-                return luaL_error(L,
-                    "python_newindex: %s (setattr fallback also failed: %s)",
-                    item_err, attr_err);
-            }
-            Py_XDECREF(e_type);
-            Py_XDECREF(e_value);
-            Py_XDECREF(e_tb);
         }
         Py_DECREF(key);
     }
