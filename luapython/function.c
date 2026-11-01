@@ -72,7 +72,7 @@ int function_call(lua_State* L) {
         if (arg == NULL) {
             Py_DECREF(args);
             Py_DECREF(kwargs);
-            return luapython_throw(L, "function_call: cannot convert argument");
+            return luapython_throw_convert(L, "function_call: cannot convert argument");
         }
         PyTuple_SetItem(args, i - 1, arg);   /* steals the reference */
     }
@@ -82,14 +82,16 @@ int function_call(lua_State* L) {
         if (lua_type(L, -2) == LUA_TSTRING) {
             const char* key = lua_tostring(L, -2);
             PyObject* key_py = PyUnicode_FromString(key);
-            PyObject* value = convertPython(L, -1);
+            /* Skip the value conversion when the key allocation failed:
+             * piling more allocations onto an out-of-memory is pointless. */
+            PyObject* value = key_py != NULL ? convertPython(L, -1) : NULL;
             if (key_py == NULL || value == NULL) {
                 Py_XDECREF(key_py);
                 Py_XDECREF(value);
                 lua_pop(L, 2);          /* value + key */
                 Py_DECREF(args);
                 Py_DECREF(kwargs);
-                return luapython_throw(L, "function_call: cannot convert keyword argument");
+                return luapython_throw_convert(L, "function_call: cannot convert keyword argument");
             }
             int rc = PyDict_SetItem(kwargs, key_py, value);
             Py_DECREF(key_py);
@@ -154,6 +156,8 @@ int pushFunctionLua(lua_State* L, PyObject* obj) {
         lua_setfield(L, -2, "__gc");
         lua_pushcfunction(L, python_index);
         lua_setfield(L, -2, "__index");
+        lua_pushcfunction(L, python_object_eq);
+        lua_setfield(L, -2, "__eq");
         luapython_register_metatable(L);
     }
     lua_setmetatable(L, -2);

@@ -54,6 +54,8 @@ int pushTupleLua(lua_State* L, PyObject* obj) {
         lua_setfield(L, -2, "__tostring");
         lua_pushcfunction(L, python_gc);
         lua_setfield(L, -2, "__gc");
+        lua_pushcfunction(L, python_object_eq);
+        lua_setfield(L, -2, "__eq");
         luapython_register_metatable(L);
     }
     lua_setmetatable(L, -2);
@@ -75,7 +77,7 @@ PyObject* convertTuplePython(lua_State* L, int index) {
         Py_XINCREF(tuple);
         return tuple;
     }
-    luaL_error(L, "convertTuplePython: expected a table or tuple at index %d, got %s",
-               index, luaL_typename(L, index));
+    luapython_convert_error(L, "convertTuplePython: expected a table or tuple at index %d, got %s",
+                            index, luaL_typename(L, index));
     return NULL;
 }

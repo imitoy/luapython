@@ -98,13 +98,52 @@ int pushLua(lua_State* L, PyObject* obj);
 
 /* All convert* functions return a NEW reference (NULL on failure). */
 PyObject* convertNumberPython(lua_State* L, int index);
-PyObject* convertBooleanPython(lua_State* L, int index);
 PyObject* convertStringPython(lua_State* L, int index);
 PyObject* convertSetPython(lua_State* L, int index);
 PyObject* convertDictPython(lua_State* L, int index);
 PyObject* convertTuplePython(lua_State* L, int index);
 PyObject* convertListPython(lua_State* L, int index);
-PyObject* convertFunctionPython(lua_State* L, int index);
-PyObject* convertModulePython(lua_State* L, int index);
 
 PyObject* convertPython(lua_State* L, int index);
+
+/* Same, but carrying the current table nesting level. Conversion is
+ * recursive, so a self-referential Lua table used to overflow the C stack;
+ * once LUAPYTHON_MAX_NESTING is exceeded the conversion fails.
+ *
+ * Conversion NEVER calls luaL_error(): a longjmp out of a half-built
+ * container would skip every Py_DECREF between the failure point and the Lua
+ * entry point (leaking the container, and leaving NULL slots in a PyList that
+ * later crash repr()). Instead the failing level records a message, each
+ * container releases what it owns and returns NULL, and the Lua entry point -
+ * after dropping its own references - calls luapython_throw_convert(). */
+#define LUAPYTHON_MAX_NESTING 200
+
+/* Record the first error of the current conversion (deeper levels know the
+ * real cause, outer ones only pass NULL on). */
+void luapython_convert_error(lua_State* L, const char* fmt, ...);
+
+/* Whether a conversion message is waiting to be raised. */
+int luapython_convert_error_pending(lua_State* L);
+
+void luapython_convert_error_clear(lua_State* L);
+
+/* Raise the pending conversion message (or the pending Python exception) as a
+ * Lua error and clear it. Never returns. Call only after every reference held
+ * by the caller has been released. */
+int luapython_throw_convert(lua_State* L, const char* context);
+
+PyObject* convertPythonAt(lua_State* L, int index, int depth);
+PyObject* convertDictPythonAt(lua_State* L, int index, int depth);
+PyObject* convertListPythonAt(lua_State* L, int index, int depth);
+
+/* --- shared metamethods --------------------------------------------------- */
+
+/* __index for any Python object: attribute lookup first, then __getitem__.
+ * Lua has no way to tell `o.k` from `o[k]`, so the two Python protocols have
+ * to be merged here; without the fallback every object that only implements
+ * __getitem__ (numpy arrays, range, os.environ, ...) silently yields nil. */
+int luapython_index_shared(lua_State* L, PyObject* obj, int keyidx);
+
+/* __eq for containers and generic objects: Python equality instead of Lua's
+ * reference comparison, so two equal lists compare equal. */
+int python_object_eq(lua_State* L);

@@ -59,7 +59,7 @@ local response = client.chat.completions.create({
     stream=false
 })
 
-print(response.choices[0].message.content)
+print(response.choices[1].message.content)
 ```
 
 7. Append `()` to the Python Iter Object.
@@ -74,7 +74,7 @@ local response = client.chat.completions.create({
 })
 
 for chunk in response() do
-    io.write(chunk.choices[0].delta.content)
+    io.write(chunk.choices[1].delta.content)
     io.flush()
 end
 ```
@@ -121,12 +121,66 @@ current `.o` files were built against).
 - **Keyword arguments are a heuristic.** A trailing table is treated as
   keyword arguments when its keys are mostly strings. Pass containers as
   `luapython.dict{...}` / `luapython.list{...}` to be explicit, and note that a
-  table mixing array and named keys is rejected rather than silently truncated.
+  table mixing array and named keys is rejected rather than silently truncated
+  -- but only on the ordinary table-conversion path. The keyword-argument path
+  is the exception: a trailing table read as keyword arguments drops its array
+  part silently, so `builtins.dict{1, a="x"}` yields `{'a': 'x'}` and the
+  numeric entry is lost.
+- **Table conversion is recursive and depth-limited.** A self-referential
+  table cannot be represented in Python, and nesting deeper than 200 levels is
+  rejected; both raise a Lua error instead of overflowing the C stack.
+- **Indexing: containers have their own rules, generic objects merge
+  `getattr` and `__getitem__`.** `luapython.list` and `luapython.tuple` use
+  Lua's 1-based subscripts (`l[1]` is the first element, `l[-1]` the last) and
+  do not expose Python attributes, so `luapython.list{1}.append` is not
+  available; `luapython.set` is not subscriptable at all. `luapython.dict`
+  looks the key up verbatim in Python (`zd[0]` is the entry whose key is `0`,
+  not the first entry) and only falls back to attribute lookup when the key is
+  absent, which is what makes `d.get(...)` work. For every *other* Python
+  object Lua has one indexing operator, so `obj.name` and `obj[key]` cannot be
+  told apart: an attribute is tried first, then `obj[key]`, and either way an
+  absent key yields `nil`. Numeric subscripts on that path are 1-based like
+  `luapython.list` (`o[1]` is the first element, `o[-1]` the last), so
+  `range(10)[1]` is `0`. That is what makes `numpy.array{...}[1]` and
+  `os.environ["PATH"]` work. Assignment on that path is item-first, the
+  intuitive reading of `o[k] = v`: numeric subscripts go to `__setitem__` with
+  the very same 1-based mapping (`ba[1] = 65` writes the element `ba[1]` reads
+  back; `o[0] = v` is an error, because a Lua sequence has no element 0), and
+  string keys use `__setitem__` whenever the type actually implements item
+  assignment (it exposes an `__setitem__` slot), and `setattr` only when the
+  type has no item write slot at all. Protocol detection is done on the type,
+  not by inspecting the exception: a user `__setitem__` may legitimately raise
+  `AttributeError`, and a proxy may forward the inner object's `TypeError`, so
+  an exception never means "no item protocol". Every `__setitem__` error is
+  therefore item semantics (unhashable key, wrong value type, ...) and surfaces
+  unchanged instead of being masked by a `setattr` attempt. Hence
+  `os.environ["X"] = "y"` really sets the environment variable -- even when
+  `X` collides with a mapping method such as `get`, which an earlier
+  getattr-probe routing used to overwrite with the value -- while
+  `obj.attr = v` keeps behaving like Python.
+  Objects that support both items and attributes therefore have a deliberate
+  asymmetry: a write lands in the item (Python's `o[k] = v`) while the
+  matching read prefers the attribute, so `os.environ["get"] = "x"` sets the
+  variable but `os.environ["get"]` still reads the `get` method; use Python
+  `setattr` when the attribute is what you want.
+  `luapython.dict` also supports
+  `for k, v in pairs(d)` on Lua 5.2+; a `None` key is skipped, because `nil`
+  would end the generic `for` and hide every remaining entry.
+- **Equality is Python equality.** Containers, numbers, modules, functions and
+  generic objects compare with Python `==` instead of Lua's reference
+  comparison, so two handles to the same list (or to the same imported module)
+  compare equal, and comparing one of them with an unrelated value is `false`
+  rather than an error.
 - **One interpreter per process.** `luapython.load()` starts CPython; a second
   call (or a host that already embedded Python) raises instead of re-entering.
   `luapython.finalize()` releases it, after which every handle obtained earlier
   becomes inert: touching one raises a Lua error instead of dereferencing freed
-  memory.
+  memory. The interpreter cannot be started again afterwards -- `isFinalized()`
+  reports it, and `load()` / `initialize()` raise instead of pretending to
+  succeed.
+- **Python's buffered output is flushed at exit.** If the script never calls
+  `finalize()`, the library finalizes the interpreter from `atexit` so that
+  `print()` output is not lost when stdout is redirected to a file or a pipe.
 
 ## TODO
 

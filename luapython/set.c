@@ -6,7 +6,10 @@
  * Returns a new reference or NULL. */
 static PyObject* set_operand(lua_State* L, int index) {
     if (lua_type(L, index) == LUA_TTABLE) {
-        return convertPython(L, index);
+        /* Must be the set converter: convertPython() turns a table with
+         * integer keys into a *list*, so `s + {3}` used to fail with
+         * "unsupported operand type(s) for |: 'set' and 'list'". */
+        return convertSetPython(L, index);
     }
     if (isPythonSet(L, index)) {
         PyObject* set = *(PyObject**)lua_touserdata(L, index);
@@ -24,6 +27,9 @@ static int set_binop(lua_State* L, const char* opname,
     if (left == NULL || right == NULL) {
         Py_XDECREF(left);
         Py_XDECREF(right);
+        if (luapython_convert_error_pending(L) || PyErr_Occurred()) {
+            return luapython_throw_convert(L, opname);
+        }
         return luaL_error(L, "set_%s: attempt to combine %s and %s",
                           opname, luaL_typename(L, -2), luaL_typename(L, -1));
     }
@@ -126,6 +132,8 @@ int pushSetLua(lua_State* L, PyObject* obj) {
         lua_setfield(L, -2, "__tostring");
         lua_pushcfunction(L, python_gc);
         lua_setfield(L, -2, "__gc");
+        lua_pushcfunction(L, python_object_eq);
+        lua_setfield(L, -2, "__eq");
         luapython_register_metatable(L);
     }
     lua_setmetatable(L, -2);
@@ -147,7 +155,7 @@ PyObject* convertSetPython(lua_State* L, int index) {
         Py_XINCREF(set);
         return set;
     }
-    luaL_error(L, "convertSetPython: expected a table or set at index %d, got %s",
-               index, luaL_typename(L, index));
+    luapython_convert_error(L, "convertSetPython: expected a table or set at index %d, got %s",
+                            index, luaL_typename(L, index));
     return NULL;
 }

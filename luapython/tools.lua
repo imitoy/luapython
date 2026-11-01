@@ -47,6 +47,15 @@ function tools.releaseToEnv(luapython, env, key)
     end
 end
 
+-- `{ ... }` cannot remember trailing nils: `#{1, nil}` is 1 and `#{nil}` is 0,
+-- so `f(1, nil)` used to become `f(1)` and `f(nil)` became `f()` (which made
+-- `json.dumps(nil)` fail with "missing required argument 'obj'"). Record the
+-- real argument count alongside the values; the native side already takes the
+-- count as its own parameter, so nothing else has to change.
+local function pack(...)
+    return { n = select("#", ...), ... }
+end
+
 -- Wrap a raw python_function so that a trailing table is treated as keyword
 -- arguments. Note this is a heuristic: a callable that expects a dict as its
 -- *last positional* argument must receive it wrapped with luapython.dict{}.
@@ -56,8 +65,8 @@ function tools.getPythonAdaptFunction(python_function)
     end
 
     return function(self, ...)
-        local args = { ... }
-        local n = #args
+        local args = pack(...)
+        local n = args.n
         local last = args[n]
         local arg_dict = {}
         -- An empty table is not a keyword-argument list: f({}) must pass an

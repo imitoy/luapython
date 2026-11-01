@@ -25,18 +25,44 @@ local function capture(command)
     return output
 end
 
--- Return the directory that contains libpython, without a trailing slash.
-local function detect_lib_prefix()
+-- Directories that may contain libpython, in the order we try them. The empty
+-- string stands for "no directory": dlopen() then searches LD_LIBRARY_PATH and
+-- ld.so.cache, which is the last resort.
+--
+-- Several layout quirks have to be covered here:
+--  * Debian/Ubuntu keep the library in a multiarch directory
+--    (/usr/lib/x86_64-linux-gnu), which `python3-config --exec-prefix` does
+--    not report -- only sysconfig knows it.
+--  * A relocated or vendored interpreter (conda, pyenv, a frozen runtime) can
+--    report a build-time LIBDIR like "/install" that does not exist at all, so
+--    the exec-prefix guess must still be tried afterwards.
+local function detect_lib_dirs()
+    local dirs = {}
+    local function add(dir)
+        if not dir then
+            return
+        end
+        dir = dir:gsub("%s+$", "")
+        if dir == "" then
+            return
+        end
+        for _, existing in ipairs(dirs) do
+            if existing == dir then
+                return
+            end
+        end
+        dirs[#dirs + 1] = dir
+    end
+
+    add(capture([[python3 -c "import sysconfig;print(sysconfig.get_config_var('LIBDIR') or '')" 2>/dev/null]]))
     if command_succeeds("python3-config --exec-prefix > /dev/null 2>&1") then
         local prefix = capture("python3-config --exec-prefix")
-        if prefix and prefix ~= "" then
-            prefix = prefix:gsub("%s+$", "")
-            return prefix .. "/lib"
+        if prefix then
+            add(prefix:gsub("%s+$", "") .. "/lib")
         end
     end
-    -- Fall back to the bare library name and let dlopen() search the usual
-    -- loader paths (LD_LIBRARY_PATH, ld.so.cache, ...).
-    return ""
+    dirs[#dirs + 1] = ""
+    return dirs
 end
 
 local function detect_version()
@@ -48,27 +74,48 @@ local function detect_version()
     return version or "3"
 end
 
--- Candidate file names, most specific first. Many distributions only ship
--- the versioned soname (libpython3.14.so.1.0) unless the -dev package is
--- installed, so a single guess is not enough.
+-- Candidate file names for one directory. Many distributions only ship the
+-- versioned soname (libpython3.14.so.1.0) unless the -dev package is
+-- installed, so a single guess is not enough. An empty `prefix` means "bare
+-- file name", i.e. let the dynamic loader resolve it.
 local function lib_candidates(version, prefix)
-    local base = (prefix ~= "" and (prefix .. "/") or "") .. "libpython" .. version
+    local base = "libpython" .. version
+    if prefix == "" then
+        -- Bare names: let the dynamic loader search its usual paths. Keep the
+        -- macOS/Windows extensions the explicit-directory list has, otherwise
+        -- those platforms lose the last-resort lookup.
+        return {
+            base .. ".so",
+            base .. ".so.1.0",
+            base .. ".dylib",
+            base .. ".dll",
+        }
+    end
     return {
-        base .. ".so",
-        base .. ".so.1.0",
-        base .. ".dylib",
-        base .. ".dll",
+        prefix .. "/" .. base .. ".so",
+        prefix .. "/" .. base .. ".so.1.0",
+        prefix .. "/" .. base .. ".dylib",
+        prefix .. "/" .. base .. ".dll",
     }
 end
 
 function loader.load(version, lib_prefix)
+    -- After finalize() every handle we handed out is dangling, so the engine
+    -- must not be started a second time. Check this before the isLoadedNative()
+    -- shortcut below: libpython stays dlopen()ed, which would otherwise make
+    -- load() report success while the interpreter is dead.
+    if loader.isFinalized and loader.isFinalized() then
+        error("luapython.load: the Python interpreter has been finalized and "
+            .. "cannot be restarted in this process", 2)
+    end
     if loader.isLoadedNative() then
         return loader.loadedPath
     end
 
-    if lib_prefix == nil then
-        lib_prefix = detect_lib_prefix()
-    end
+    -- An explicit directory is taken literally (a virtualenv that ships no
+    -- libpython must fail instead of silently loading the system one); only
+    -- auto-detection gets the extra guesses.
+    local dirs = (lib_prefix ~= nil) and { lib_prefix } or detect_lib_dirs()
 
     if version == nil then
         version = detect_version()
@@ -80,13 +127,18 @@ function loader.load(version, lib_prefix)
 
     local tried = {}
     local path
-    for _, candidate in ipairs(lib_candidates(version, lib_prefix)) do
-        local ok, err = pcall(loader.loadNative, candidate)
-        if ok then
-            path = candidate
+    for _, dir in ipairs(dirs) do
+        for _, candidate in ipairs(lib_candidates(version, dir)) do
+            local ok, err = pcall(loader.loadNative, candidate)
+            if ok then
+                path = candidate
+                break
+            end
+            tried[#tried + 1] = tostring(err)
+        end
+        if path then
             break
         end
-        tried[#tried + 1] = tostring(err)
     end
 
     if not path then

@@ -1,5 +1,5 @@
--- Regression tests for the P0 bugs listed in the code review.
--- Run with: make test          (or see test/run.sh for a manual setup)
+-- Regression tests for the bugs found in the code reviews.
+-- Run with: make test         (or see the TEST_ENV variable in the Makefile)
 
 local pass, fail, skip = 0, 0, 0
 
@@ -181,12 +181,16 @@ local function rss_kb()
     return tonumber(text:match("VmRSS:%s*(%d+)"))
 end
 
--- valgrind 会用 redzone 和影子内存抬高 RSS，这个指标在它下面没有意义。
-local under_valgrind = (os.getenv("LD_PRELOAD") or ""):lower():find("valgrind", 1, true) ~= nil
+-- valgrind 会用 redzone 和影子内存抬高 RSS；ASan 换掉了 malloc 并保留
+-- quarantine（默认能攒到上百 MB），两者下面这个指标都没有意义。
+local preload = (os.getenv("LD_PRELOAD") or ""):lower()
+local under_sanitizer = preload:find("valgrind", 1, true) ~= nil
+    or preload:find("libasan", 1, true) ~= nil
+    or preload:find("libclang_rt.asan", 1, true) ~= nil
 
 local before = rss_kb()
-if under_valgrind then
-    skipped("30 万次 float 返回不涨 RSS（valgrind 下 RSS 不可信）")
+if under_sanitizer then
+    skipped("30 万次 float 返回不涨 RSS（valgrind/ASan 下 RSS 不可信）")
 elseif before then
     for i = 1, 300000 do
         local _ = math.sqrt(i)
@@ -233,15 +237,397 @@ end
 ok(#collected == 3 and collected[1] == 1 and collected[3] == 3, "for ... in pyiter()")
 
 --------------------------------------------------------------------------
+section("下标语义：getattr 之后回退 __getitem__")
+
+-- 只实现 __getitem__ 的对象以前下标一律返回 nil（静默错误），
+-- 典型受害者：numpy 数组、range、os.environ、collections.deque
+local collections = luapython.import "collections"
+local osmod = luapython.import "os"
+
+-- 下标沿用 Lua 的 1-based 约定（和 luapython.list 一致），负数仍是 Python 语义
+ok(builtins.range(0, 10)[1] == 0, "range[1] 是第一个元素", tostring(builtins.range(0, 10)[1]))
+ok(builtins.range(0, 10)[2] == 1, "range[2] 是第二个元素", tostring(builtins.range(0, 10)[2]))
+ok(builtins.range(0, 10)[0] == nil, "range[0] 是 nil")
+ok(builtins.range(0, 10)[-1] == 9, "range[-1] 是最后一个元素", tostring(builtins.range(0, 10)[-1]))
+ok(collections.deque({ 1, 2, 3 })[1] == 1, "deque[1] 是第一个元素",
+   tostring(collections.deque({ 1, 2, 3 })[1]))
+ok(osmod.environ["PATH"] ~= nil, "os.environ 字符串下标取值")
+ok(osmod.environ["PATH"] == osmod.environ.get("PATH"), "environ 与 get() 结果一致")
+
+-- dict 的 key 查找优先，缺失时才回退到属性，所以 d.keys / d.get 可用
+local d1 = luapython.dict { a = 1 }
+ok(d1.get("a") == 1, "dict 属性形式的方法调用", tostring(d1.get and d1.get("a")))
+ok(d1.keys ~= nil, "dict.keys 可访问")
+ok(#luapython.astable(d1.keys()) == 1, "dict.keys() 可以调用")
+ok(d1.nope == nil, "缺失 key 仍返回 nil（不抛异常）")
+local shadow = luapython.dict { get = 7 }
+ok(shadow.get == 7, "同名 key 优先于方法", tostring(shadow.get))
+
+--------------------------------------------------------------------------
+section("写下标语义：按类型检测 item 协议、无 slot 才走 setattr（不再腐蚀 os.environ）")
+
+-- 数字键写方向必须落在读方向取值的那个元素上（1-based 一致）。旧代码写数字键
+-- 走 setattr("1")，bytearray 直接报
+-- AttributeError: 'bytearray' object has no attribute '1' and no __dict__
+local ba = builtins.bytearray(3)
+local okw, errw = pcall(function() ba[1] = 65 end)
+ok(okw and ba[1] == 65, "bytearray[1] = 65 写到读 o[1] 取到的元素（1-based 对齐）",
+   tostring(errw) .. " / ba[1]=" .. tostring(ba[1]))
+local okw2, errw2 = pcall(function() ba[-1] = 67 end)
+ok(okw2 and ba[3] == 67 and ba[-1] == 67,
+   "bytearray[-1] = x 写到最后一个元素（负数语义与读一致）",
+   tostring(errw2) .. " / " .. tostring(ba[3]) .. "," .. tostring(ba[-1]))
+-- 读方向 o[0] 是 nil（Lua 序列没有 0 号元素），写方向不能静默丢数据
+local ok0, err0 = pcall(function() ba[0] = 1 end)
+ok(not ok0 and tostring(err0):match("out of range") ~= nil,
+   "bytearray[0] = x 报错而不是静默丢弃", err0)
+
+-- os.environ 只实现 __setitem__：旧代码 setattr 要么报错、要么把值写到
+-- 对象属性上，环境变量根本没设，Lua 侧读回属性还有成功假象，
+-- 必须从 Python 侧（getenv / mapping get）验证真的写进去了
+local ENVKEY = "LUAPYTHON_REVIEW_TEST"
+local okenv, errenv = pcall(function() osmod.environ[ENVKEY] = "hello" end)
+ok(okenv and osmod.environ[ENVKEY] == "hello",
+   "os.environ[KEY] = v 后 Lua 侧读回", tostring(errenv))
+ok(osmod.getenv(ENVKEY) == "hello",
+   "os.environ[KEY] = v 真的写进了环境变量（Python 侧 getenv）",
+   tostring(osmod.getenv(ENVKEY)))
+ok(osmod.environ.get(ENVKEY) == "hello",
+   "os.environ.get(KEY) 从映射 item 读到同一个值",
+   tostring(osmod.environ.get(ENVKEY)))
+-- 测试结束必须清理，避免污染进程环境
+pcall(function() osmod.environ.pop(ENVKEY) end)
+ok(osmod.getenv(ENVKEY) == nil, "清理后环境变量已删除", tostring(osmod.getenv(ENVKEY)))
+
+-- 字符串键写路由（本次缺陷的回归锚点）：item 优先。旧代码用 getattr 探测
+-- 路由，os.environ["get"] 命中 MutableMapping.get 方法后被改道成 setattr：
+-- 环境变量没设上，get 方法还被字符串覆盖，之后所有 os.getenv / environ.get
+-- 全部 TypeError: 'str' object is not callable，而 Lua 侧读回 "collide"
+-- 造成成功的假象。environ 有 __dict__，setattr 会"成功"，所以只能从
+-- Python 侧（getenv / mapping get）验证真的写进了环境变量。
+local function try_env_set(key, value)
+    return pcall(function() osmod.environ[key] = value end)
+end
+local function try_env_get(name)
+    -- environ.get 是 mapping 方法；方法被腐蚀时这里会直接抛 TypeError
+    return pcall(function() return osmod.getenv(name) end)
+end
+
+local okc, errc = try_env_set("get", "collide")
+ok(okc, "os.environ['get'] = 'collide' 写入不报错", errc)
+local okv, valv = try_env_get("get")
+ok(okv and valv == "collide",
+   "os.environ['get'] 真的写进了环境变量（Python 侧 os.getenv 读到 'collide'）",
+   okv and tostring(valv) or tostring(valv))
+local okm, valm = pcall(function() return osmod.environ.get("get") end)
+ok(okm and valm == "collide",
+   "os.environ.get 方法未被覆盖，仍从 item 读到同一个值",
+   okm and tostring(valm) or tostring(valm))
+local okp, valp = try_env_get("PATH")
+ok(okp and valp ~= nil,
+   "os.getenv 仍可正常调用（不再 TypeError: 'str' object is not callable）",
+   okp and tostring(valp) or tostring(valp))
+-- 已知且接受的语义：读方向 attr 优先不变，Lua 侧 environ["get"] 读到的
+-- 仍是 get 方法本身（要写/读属性请走 Python 侧）
+local oksh, valsh = pcall(function() return osmod.environ["get"] end)
+ok(oksh and valsh == osmod.environ.get,
+   "读方向 attr 优先不变：Lua 侧 environ['get'] 读到的是 get 方法",
+   tostring(valsh))
+
+-- 同一模式再抽 keys：映射方法名同样不能被腐蚀
+local okc2, errc2 = try_env_set("keys", "collide2")
+ok(okc2, "os.environ['keys'] = 'collide2' 写入不报错", errc2)
+local okv2, valv2 = try_env_get("keys")
+ok(okv2 and valv2 == "collide2",
+   "os.environ['keys'] 真的写进了环境变量（os.getenv 读到 'collide2'）",
+   okv2 and tostring(valv2) or tostring(valv2))
+local okk = pcall(function() return osmod.environ.keys() end)
+ok(okk, "os.environ.keys 方法未被破坏（仍可调用）")
+
+-- 测试结束必须清理，避免污染进程环境
+pcall(function() osmod.environ.pop("get") end)
+pcall(function() osmod.environ.pop("keys") end)
+local okcl, vcl = try_env_get("get")
+local okcl2, vcl2 = try_env_get("keys")
+ok(okcl and vcl == nil and okcl2 and vcl2 == nil,
+   "清理后 get/keys 环境变量已删除",
+   tostring(vcl) .. "," .. tostring(vcl2))
+
+-- TypeError 不回退：environ 的 __setitem__ 只接受字符串值，传数字是 item
+-- 语义错误，绝不能回退 setattr（environ 有 __dict__，回退会把 5 写成同名
+-- 属性，再次静默腐蚀对象）
+local ENVNUM = "LUAPYTHON_REVIEW_NUM"
+local okn, errn = pcall(function() osmod.environ[ENVNUM] = 5 end)
+ok(not okn and tostring(errn):match("TypeError") ~= nil,
+   "os.environ[KEY] = 5 报出 Python 的 TypeError（不回退 setattr）", errn)
+local oknv, numv = pcall(function() return osmod.environ[ENVNUM] end)
+local okng, numg = try_env_get(ENVNUM)
+ok(oknv and numv == nil and okng and numg == nil,
+   "失败的写入没有留下属性或环境变量（无腐蚀）",
+   tostring(numv) .. " / " .. tostring(numg))
+
+-- item 语义错误一律原样报出：bytearray 的字符串下标是 item 语义错误，
+-- 不能被 setattr 的 AttributeError 掩盖成误导消息
+local okb, errb = pcall(function() ba["k"] = 1 end)
+ok(not okb and tostring(errb):match("indices must be integers") ~= nil,
+   "bytearray['k'] = 1 报 item 语义的 TypeError 而不是误导消息", errb)
+
+-- dict 的 item 写不回归：d[k] = v 仍然是 item（get() 从 item 侧读得到）
+local d2 = luapython.dict {}
+d2["k"] = 9
+ok(d2["k"] == 9 and d2.get("k") == 9, "dict[k] = v 仍是 item 写",
+   tostring(d2.get("k")))
+-- 不可哈希 key 是 item 语义错误（dict_newindex 路径），必须报 Python 原文
+local d3 = luapython.dict {}
+local okh, errh = pcall(function() d3[{}] = 1 end)
+ok(not okh and tostring(errh):match("unhashable") ~= nil,
+   "dict[{}] = 1 报 unhashable TypeError（不回退、不误导）", errh)
+
+-- 普通对象属性写不回归：类型没有 item 写 slot 时直接走 setattr，
+-- obj.attr = v 仍像 Python 一样工作
+local types = luapython.import "types"
+local ns = types.SimpleNamespace()
+ns.attr = 5
+ok(ns.attr == 5, "对象新属性写入（无 item 协议 → setattr）", tostring(ns.attr))
+ns.attr = 7
+ok(ns.attr == 7, "对象已有属性覆盖写入（无 item 协议 → setattr）", tostring(ns.attr))
+
+-- 无 item 协议且无 __dict__：setattr 本身失败，报的是 setattr 的
+-- AttributeError，而不是再拼一段 item 侧异常（类型层面已确定没有 item 协议，
+-- 根本不会调用 PyObject_SetItem）
+local plain = builtins.object()
+local okx, errx = pcall(function() plain.x = 1 end)
+ok(not okx, "无 item 协议且无 __dict__ 的对象写入报错而不是静默丢弃", errx)
+ok(tostring(errx):match("AttributeError") ~= nil,
+   "报错是 setattr 的 AttributeError", errx)
+ok(tostring(errx):match("does not support item assignment") == nil,
+   "类型没有 item slot 时不再先撞一次 item 写的 TypeError", errx)
+
+-- 类型层面协议检测的回归锚点一：自定义类的 __setitem__ 抛 AttributeError。
+-- 旧实现把 AttributeError 一律当成“没有 item 协议”，于是 m["get"] = 99
+-- 被静默改道到 setattr，覆盖了实例方法 get，Lua 侧还显示成功。
+local clsns = builtins.dict {}
+builtins.exec([[
+class RaisingSetItem:
+    def __init__(self):
+        self.d = {}
+    def __setitem__(self, key, value):
+        raise AttributeError("item store refused by user code")
+    def get(self, key):
+        return self.d.get(key)
+]], clsns)
+local RaisingSetItem = clsns["RaisingSetItem"]
+local m = RaisingSetItem()
+local okra, erra = pcall(function() m["get"] = 99 end)
+ok(not okra and tostring(erra):match("AttributeError") ~= nil,
+   "__setitem__ 抛 AttributeError 时写入必须报错（不得改道 setattr）", erra)
+local okmg, valmg = pcall(function() return m.get("x") end)
+ok(okmg and valmg == nil,
+   "m.get 方法未被覆盖，仍可调用", okmg and tostring(valmg) or tostring(valmg))
+local mdict = builtins.getattr(m, "__dict__")
+ok(builtins.len(mdict) == 1,
+   "m.__dict__ 里只有 d、没有被写入的 get 键", tostring(builtins.len(mdict)))
+ok(builtins.len(m.d) == 0, "Python 侧 len(m.d) == 0（item 存储未变）",
+   tostring(builtins.len(m.d)))
+
+-- 类型层面协议检测的回归锚点二：代理类把内层 tuple 的 TypeError 原样转发，
+-- 文案含 "does not support item assignment"。旧实现按文案白名单命中后
+-- 改道 setattr，内层 tuple 未变、代理实例却多出一个属性。
+local proxyns = builtins.dict {}
+builtins.exec([[
+class TupleProxy:
+    def __init__(self):
+        self.inner = ()
+        self.d = {}
+    def __setitem__(self, key, value):
+        self.inner[0] = value
+]], proxyns)
+local TupleProxy = proxyns["TupleProxy"]
+local px = TupleProxy()
+local okpx, errpx = pcall(function() px["k"] = 1 end)
+ok(not okpx and tostring(errpx):match("does not support item assignment") ~= nil,
+   "代理转发的 item TypeError 必须原样报出（不得改道 setattr）", errpx)
+ok(builtins.len(px.inner) == 0, "内层 tuple 未被修改", tostring(builtins.len(px.inner)))
+ok(not builtins.hasattr(px, "k"), "代理实例没有新增属性 k")
+ok(builtins.len(builtins.getattr(px, "__dict__")) == 2,
+   "代理实例 __dict__ 仍只有 inner/d", tostring(builtins.len(builtins.getattr(px, "__dict__"))))
+
+-- 双支持对象要写属性，从 Python 侧 setattr（写语义差异的出口）
+builtins.setattr(osmod.environ, "LUAPYTHON_REVIEW_ATTR", "attrvalue")
+local okat, valat = pcall(function() return osmod.environ["LUAPYTHON_REVIEW_ATTR"] end)
+ok(okat and valat == "attrvalue",
+   "Python 侧 setattr 写的才是属性（读方向 attr 优先能读回）", tostring(valat))
+pcall(function() builtins.delattr(osmod.environ, "LUAPYTHON_REVIEW_ATTR") end)
+
+--------------------------------------------------------------------------
+section("容器 / 对象的相等语义")
+
+-- 没有 __eq 时 Lua 按引用比较，两个相等的 Python 容器以前恒为 false
+ok(builtins.list({ 1, 2 }) == builtins.list({ 1, 2 }), "list == list")
+ok(luapython.dict { a = 1 } == luapython.dict { a = 1 }, "dict == dict")
+ok(luapython.tuple({ 1, 2 }) == luapython.tuple({ 1, 2 }), "tuple == tuple")
+ok(builtins.set({ 1, 2 }) == builtins.set({ 1, 2 }), "set == set")
+ok(not (builtins.list({ 1, 2 }) == builtins.list({ 1, 3 })), "不同内容不相等")
+ok(not (builtins.list({ 1 }) == luapython.dict { a = 1 }), "不同容器类型不相等")
+ok(not (builtins.list({ 1 }) == 1), "与 Lua 值比较返回 false 而不是报错")
+
+-- Lua 5.4+ 只要一侧带 __eq 就会调用它，所以对侧可以是任意 full userdata
+-- （FILE*、socket…）。把这坨内存当成 PyObject* 解引用，实测直接 SIGSEGV。
+local foreign = io.open("/dev/null")
+ok(not (builtins.list({ 1 }) == foreign), "与外部 userdata 比较返回 false 而不是崩溃（左侧）")
+ok(not (foreign == builtins.list({ 1 })), "与外部 userdata 比较返回 false 而不是崩溃（右侧）")
+foreign:close()
+
+-- module / function 以前没有 __eq，同一个 Python 对象两次取到也判不等
+local os_a = luapython.import "os"
+local os_b = luapython.import "os"
+ok(os_a == os_b, "同一个 module 的两个句柄相等")
+ok(builtins.len == builtins.len, "同一个 callable 的两个句柄相等")
+ok(not (builtins.len == os_a), "不同类型的对象比较返回 false")
+
+--------------------------------------------------------------------------
+section("参数传递：尾部 nil 不再被吞掉")
+
+-- `{...}` 记不住尾部的 nil（#{1,nil} 是 1、#{nil} 是 0），
+-- 所以 f(1, nil) 曾被悄悄改成 f(1)
+ok(json.dumps(nil) == "null", "json.dumps(nil) == 'null'", json.dumps(nil))
+ok(builtins.repr(nil) == "None", "repr(nil) == 'None'", builtins.repr(nil))
+ok(select("#", builtins.repr(nil)) == 1, "只有一个返回值")
+local ok_nil, err_nil = pcall(function() return builtins.len(nil) end)
+ok(not ok_nil and tostring(err_nil):match("NoneType"),
+   "nil 真的作为 None 传给了 Python", err_nil)
+
+--------------------------------------------------------------------------
+section("运算符的 table 操作数")
+
+-- convertPython 会把纯数字键的 table 变成 list，于是 s + {3} 报
+-- "unsupported operand type(s) for |: 'set' and 'list'"
+local ss = builtins.set({ 1, 2 })
+ok(#(ss + { 3 }) == 3, "set + table 是并集", tostring(ss + { 3 }))
+ok(#(ss * { 2 }) == 1, "set * table 是交集", tostring(ss * { 2 }))
+ok(#(ss - { 1 }) == 1, "set - table 是差集", tostring(ss - { 1 }))
+-- 字符串键的 table 本来就会走 dict，这条在旧代码上也能过
+ok((luapython.dict { a = 1 } + { b = 2 }).b == 2, "dict + 字符串键 table 合并")
+-- 真正被 convertDictPython 修好的是纯数字键 table：旧代码按 convertPython
+-- 把它变成 list，PyDict_Copy 随后报 "'list' object has no attribute 'keys'"
+local num_merged = luapython.dict { a = 1 } + { 10, 20 }
+ok(num_merged.a == 1 and num_merged[1] == 10 and num_merged[2] == 20,
+   "dict + 数字键 table 合并（旧代码会当成 list 报错）", tostring(num_merged))
+-- 嵌套 table 作 key 会变成不可哈希的 list：必须报出 Python 的 TypeError，
+-- 不能被 "dict_add: attempt to merge" 掩盖（那还会留下未清的 Python 异常）
+local ok_hash, err_hash = pcall(function() return luapython.dict { a = 1 } + { [ {} ] = 1 } end)
+ok(not ok_hash and tostring(err_hash):match("unhashable"),
+   "dict + 含不可哈希 key 的 table 报告 Python 错误", err_hash)
+
+--------------------------------------------------------------------------
+section("环形 / 超深 table 不再崩溃")
+
+local cyclic = {}
+cyclic[1] = cyclic
+local ok_cyc, err_cyc = pcall(luapython.list, cyclic)
+ok(not ok_cyc and tostring(err_cyc):match("nested"),
+   "环形 list 报 Lua error 而不是段错误", err_cyc)
+
+local cyclic_dict = {}
+cyclic_dict.self = cyclic_dict
+local ok_cyd, err_cyd = pcall(luapython.dict, cyclic_dict)
+ok(not ok_cyd and tostring(err_cyd):match("nested"),
+   "环形 dict 报 Lua error 而不是段错误", err_cyd)
+
+local deep = { 1 }
+for _ = 1, 50 do deep = { deep } end
+ok(pcall(luapython.list, deep), "50 层嵌套仍然可以正常转换")
+
+-- 53f6a89 的回归：失败的转换必须把建到一半的 Python 容器全部释放。
+-- 转换层一旦用 luaL_error 直接 longjmp，就会跳过中间所有 Py_DECREF，
+-- 一次环形 table 转换漏约 200 个对象（实测 3000 次漏 +603001 个）。
+-- 下面三条失败路径各连跑 100 次，Python 侧的存活对象数必须几乎不动。
+-- 两个计数器都看：gc.get_objects() 数得到受 GC 跟踪的对象；但 CPython
+-- 3.13 起值全是标量的 dict（含空 dict）不再被 GC 跟踪，dict 路径中途
+-- 失败漏掉的空 dict 只有 sys.getallocatedblocks() 能看见。
+local ok_gc, gcmod = pcall(luapython.import, "gc")
+local ok_sys, sysmod = pcall(luapython.import, "sys")
+if not ok_gc or gcmod.get_objects == nil
+    or not ok_sys or sysmod.getallocatedblocks == nil then
+    skipped("失败转换不泄漏 Python 对象（gc.get_objects / sys.getallocatedblocks 不可用）")
+else
+    local function py_live_counts()
+        collectgarbage("collect")   -- 丢掉上一次测量留下的句柄
+        return builtins.len(gcmod.get_objects()), sysmod.getallocatedblocks()
+    end
+    local function leaked_growth(fail_once)
+        for _ = 1, 3 do pcall(fail_once) end   -- 先热身，吸收一次性缓存/驻留字符串
+        local gc_before, blocks_before = py_live_counts()
+        for _ = 1, 100 do pcall(fail_once) end
+        local gc_after, blocks_after = py_live_counts()
+        return gc_after - gc_before, blocks_after - blocks_before
+    end
+    -- 不泄漏时实测两个增长都是 0（blocks 偶尔 +1~3）；阈值给 CPython
+    -- 自身的波动留余量，而旧代码下每条路径的增长都远超阈值。
+    local function check_no_leak(name, fail_once)
+        local gc_grown, blocks_grown = leaked_growth(fail_once)
+        local detail = "gc +" .. gc_grown .. ", blocks +" .. blocks_grown
+        ok(gc_grown < 10 and blocks_grown < 100,
+           name .. " 连续 100 次失败转换不泄漏 Python 对象（" .. detail .. "）",
+           detail)
+    end
+    check_no_leak("环形 list", function() luapython.list(cyclic) end)
+    check_no_leak("环形 dict", function() luapython.dict(cyclic_dict) end)
+    -- 旧路径：元素类型不支持（function）在递归中途失败
+    check_no_leak("list{1, function()}", function() luapython.list({ 1, function() end }) end)
+end
+
+if LUA_VER >= 5.2 then
+    local walked = {}
+    for key, value in pairs(luapython.dict { a = 1, b = 2 }) do
+        walked[key] = value
+    end
+    ok(walked.a == 1 and walked.b == 2, "for k, v in pairs(pydict)")
+
+    -- Python 允许 d[None] = x，但 None 没有 Lua 值（nil）。迭代器若把它当
+    -- 第一个返回值，泛型 for 会立刻结束，静默漏掉其余所有键。
+    local none_dict = luapython.dict {}
+    none_dict[nil] = "none-key"
+    none_dict.a = 1
+    none_dict.b = 2
+    local visited = {}
+    for key, value in pairs(none_dict) do
+        visited[key] = value
+    end
+    ok(#none_dict == 3 and visited.a == 1 and visited.b == 2,
+       "None 键存在时 pairs 仍访问其余所有键",
+       tostring(visited.a) .. "," .. tostring(visited.b))
+else
+    skipped("pairs(pydict)（Lua 5.1 不支持 __pairs）")
+end
+
+--------------------------------------------------------------------------
 section("P0-7 finalize 之后不再崩溃（必须最后执行）")
 
 local survivor = builtins.list({ 1, 2, 3 })
+local survivor2 = builtins.list({ 1, 2, 3 })   -- 两个不同对象：同一个对象会被
+                                                -- Lua 按引用判定相等，根本不进 __eq
 luapython.finalize()
 local okc3, err3 = pcall(function() return #survivor end)
 ok(not okc3, "finalize 后访问对象抛出 Lua error 而不是崩溃", err3)
+
+-- __eq 会把两个句柄交给 PyObject_RichCompareBool；finalize 之后它们指向
+-- 已释放内存，所以必须在这里就放弃，而不是比较两坨垃圾
+local okc4, same = pcall(function() return survivor == survivor2 end)
+ok(okc4 and same == false, "finalize 后比较两个对象不崩溃", tostring(same))
+
 collectgarbage("collect")
 collectgarbage("collect")
 ok(true, "finalize 后 GC 不崩溃")
+
+-- 重新启动解释器会让旧句柄重新被当成有效对象（use-after-free）
+ok(luapython.isFinalized() == true, "isFinalized() 为真")
+local ok_init, err_init = pcall(luapython.initialize)
+ok(not ok_init and tostring(err_init):match("finalized"),
+   "finalize 之后 initialize 被拒绝", err_init)
+local ok_load, err_load = pcall(luapython.load)
+ok(not ok_load and tostring(err_load):match("finalized"),
+   "finalize 之后 load() 明确报错（不再假装成功）", err_load)
 
 --------------------------------------------------------------------------
 io.write(string.format("\n%d passed, %d failed, %d skipped\n", pass, fail, skip))
